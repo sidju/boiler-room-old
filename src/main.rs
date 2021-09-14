@@ -1,12 +1,12 @@
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use hyper::{Body, Request, Response, Server};
+use hyper::Server;
 use hyper::service::{make_service_fn, service_fn};
 
-async fn handle_request(req: Request<Body>) -> Result<Response<Body>, Infallible> {
-  let path = req.uri().path();
-  Ok(Response::new(format!("Hello at {}", path).into()))
-}
+mod traits;
+pub use traits::*;
+
+mod routes;
 
 #[tokio::main]
 async fn main() {
@@ -21,7 +21,7 @@ async fn main() {
   //   Since we can create that from a closure, we can bind in variables to all created Services
   let make_service = make_service_fn(
     |_conn| async move {
-      Ok::<_, Infallible>( service_fn(handle_request) )
+      Ok::<_, Infallible>( service_fn(routes::handle_request) )
     }
   );
 
