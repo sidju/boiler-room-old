@@ -44,7 +44,7 @@ todo\
     Some("logout") => {
       verify_method_path_end(&path_vec, &req, &Method::POST)?;
       // Require authentication
-      let session_key = crate::auth::unwrap_bearer(&get_header(&req, "Authorization")?);
+      let session_key = unwrap_bearer(get_header(&req, "Authorization")?);
       crate::auth::require_session(
         state,
         session_key.clone(),

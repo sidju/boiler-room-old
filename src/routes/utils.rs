@@ -9,12 +9,12 @@ pub fn json <T: Serialize + ?Sized> (data: &T) -> Result<Response, Error> {
   Ok(re)
 }
 
-pub fn get_header(
-  req: &Request,
+pub fn get_header<'a>(
+  req: &'a Request,
   header_name: &str,
-) -> Result<Option<String>, Error> {
+) -> Result<Option<&'a str>, Error> {
   Ok( match req.headers().get(header_name) {
-    Some(val) => Some(val.to_str()?.to_string()),
+    Some(val) => Some(val.to_str()?),
     None => None,
   } )
 }
@@ -56,5 +56,26 @@ pub fn verify_method_path_end(
   }
   else {
     Ok(())
+  }
+}
+
+// Unwrap a key expecting bearer auth type
+pub fn unwrap_bearer(
+  key: Option<&str>,
+) -> Option<String> {
+  // Unwrap Option
+  match key {
+    Some(ke) => {
+      // Unwrap if 0..7 is valid selection
+      let prefix = ke.get(..7).map(|k| { k.to_ascii_lowercase() });
+      match prefix.as_ref().map(|s| &s[..]) {
+        Some("bearer ") => {
+          ke.get(7..).map(|k| k.trim().to_string())
+        },
+        Some(_) => None,
+        None => None,
+      }
+    },
+    None => None,
   }
 }

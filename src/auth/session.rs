@@ -21,27 +21,6 @@ pub async fn prune_sessions(
   }
 }
 
-// Unwrap a key expecting bearer auth type
-pub fn unwrap_bearer(
-  key: &Option<String>,
-) -> Option<String> {
-  // Unwrap Option
-  match key {
-    Some(ke) => {
-      // Unwrap if 0..7 is valid selection
-      let prefix = ke.get(..7).map(|k| { k.to_ascii_lowercase() });
-      match prefix.as_ref().map(|s| &s[..]) {
-        Some("bearer ") => {
-          ke.get(7..).map(|k| k.trim().to_string())
-        },
-        Some(_) => None,
-        None => None,
-      }
-    },
-    None => None,
-  }
-}
-
 // Check an optionally provided session key
 pub async fn session(
   state: &'static State,
