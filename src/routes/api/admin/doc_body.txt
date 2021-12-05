@@ -1,0 +1,80 @@
+Admin APIs:
+  user:
+    GET:
+      Get all users.
+      Accepts url-encoded filters in the query part of URI:
+        id_mte (integer that id is more than or equals),
+        id_lte (integer that id is less than or equals),
+        username_regex (regex string that username matches),
+        username_nregex (regex string that username doesn't match),
+        admin_eq (bool as string, 'true' or 'false', that admin equals),
+        locked_eq (bool as string, that locked equals),
+        order_by (string, 'id_asc' or 'id_desc'),
+        limit (integer, number of rows to get from the DB, otherwise unlimited),
+      (all of which can be combined freely).
+      Returns id, username, admin, locked for the (up to limit) users matching.
+      If no users match returns HTTP status 204.
+    POST:
+      Create a new user (with or without password).
+      Takes a json-encoded body containing username(string), password (optional string)
+      admin(bool as string, 'true' or 'false'), locked(bool as string).
+      If successful returns created object with object URL in the Location header
+      (HTTP status 201).
+    $id:
+      GET:
+        Get user with given id.
+        Returns user's info (id, username, locked, admin) if found.
+      PUT:
+        Update user with given id.
+        Refuses to change users with id < 1.
+        Takes a json encoded body containing username(string), locked(bool as
+        string, 'true' or 'false'), admin(bool as string).
+        If successful returns resulting object.
+      DELETE:
+        Delete the user with given id.
+        Refuses to delete users with id < 1.
+        If successful returns nothing (HTTP status 204).
+      password:
+        POST:
+          Reset password for user with given id.
+          Takes a json-encoded body containing admin_password(string), new_password
+          (string), clear_sessions(bool as string, 'true' or 'false').
+          If admin_password matches current admin's password hash and new_password
+          equals new_password_verification the new password is set and empty
+          response (HTTP status 204) is returned.
+          If clear_sessions is set and the transaction is a success all the user's
+          sessions are deleted before responding.
+        DELETE:
+          Delete a user's password, making their account inaccessible, and 
+          invalidate all their sessions.
+          Refuses to modify users with id < 1.
+          Intended for stopping an ongoing breach of the target account.
+          (Since an admin cannot set a new relevant password without user input).
+          For bans it is recommended to set the 'locked' flag on the user instead,
+          since that returns an AccountLocked error instead of just BadLogin.
+          Returns an empty response (HTTP status 204).
+      impersonate:
+        POST:
+          Create and get a session belonging to user with given id.
+          Takes a json-encoded body containing admin_password(string).
+          If admin_password matches current admin's password hash a session is
+          created for the user and returned.
+  sessions:
+    GET:
+      Get all sessions.
+      Accepts url-encoded filters in the query part or URI:
+        id_mte (integer that id is more than or equals),
+        id_lte (integer that id is less than or equals),
+        userid_eq (integer),
+        until_lte (timestamp that until is less than or equals),
+        until_mte (timestamp that until is more than or equals),
+        order_by (string, one of 'id_asc', 'id_desc', 'userid_asc', 'userid_desc'
+          'until_asc'(default) or 'until_desc'),
+        limit (integer, number of rows to get from the DB, otherwise unlimited)
+      (all of which can be combined freely).
+      Returns id, userid, and end of validity for the (up to limit) sessions matching.
+      (If you wish to get another lump of sessions, offset filters based on ordering)
+      If no sessions match returns HTTP status 204.
+    $id:
+      DELETE:
+        Deletes the session with the given id.

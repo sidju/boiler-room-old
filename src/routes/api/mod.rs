@@ -1,6 +1,9 @@
 use super::*;
 use crate::auth::Login;
 
+mod user;
+mod admin;
+
 pub async fn route(
   state: &'static State,
   mut req: Request,
@@ -9,26 +12,14 @@ pub async fn route(
   match path_vec.pop().as_deref() {
     None | Some("") => {
       verify_method_path_end(&path_vec, &req, &Method::GET)?;
-      Ok(Response::new("\
-API:
-  login:
-    Takes a form containing username(string), password(string) and extended(bool as string, 'true' or 'false').
-    The extended flag defines wether the session is valid for 1 day (if false) or 1 year (if true).
-    If successful returns session data as a json body, containing key(string) and time of expiry.
-  logout:
-    Requires valid session.
-    Takes any post (data ignored) and deletes the session used to access the handler.
-    If successful returns nothing (HTTP status 204).
-Errors:
-todo\
-      ".into()))
+      Ok(Response::new(include_str!("doc_body.txt").into()))
     },
     Some("login") => {
       verify_method_path_end(&path_vec, &req, &Method::POST)?;
       // Parse out request
-      let form: Login = from_body(&mut req).await?;
+      let credentials: Login = from_json(&mut req).await?;
       // Call login handler
-      let session = crate::auth::login(state, form).await?;
+      let session = crate::auth::login(state, credentials).await?;
       // Slightly wrap up the result
       match session {
         Some(session) => {
@@ -41,23 +32,47 @@ todo\
         None => Err(Error::BadLogin),
       }
     },
-    Some("logout") => {
-      verify_method_path_end(&path_vec, &req, &Method::POST)?;
+    Some("admin") => {
       // Require authentication
       let session_key = unwrap_bearer(get_header(&req, "Authorization")?);
-      crate::auth::require_session(
+      let permissions = crate::auth::require_admin(
         state,
         session_key.clone(),
       ).await?;
-      // Call logout handler
-      crate::auth::logout(state, session_key).await?;
-      // Create simple response
-      let mut re = Response::new("".into());
-      *re.status_mut() = StatusCode::NO_CONTENT;
-      Ok(re)
+      // Call into detail routing
+      admin::route(
+        state,
+        req,
+        path_vec,
+        permissions,
+      ).await
     },
-    Some(_) => {
-      Err(Error::PathNotFound( format!("{}", req.uri().path()) ))
+    Some(p) => {
+      // Require authentication
+      let session_key = unwrap_bearer(get_header(&req, "Authorization")?);
+      let permissions = crate::auth::require_session(
+        state,
+        session_key.clone(),
+      ).await?;
+      match p {
+        "logout" => {
+          verify_method_path_end(&path_vec, &req, &Method::POST)?;
+          // Call logout handler
+          crate::auth::logout(state, session_key).await?;
+          empty()
+        },
+        "user" => {
+          user::route(
+            state,
+            req,
+            path_vec,
+            permissions,
+          ).await
+        },
+        _ => {
+          Err(Error::PathNotFound( format!("{}", req.uri().path()) ))
+        },
+      }
     },
   }
 }

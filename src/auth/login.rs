@@ -5,6 +5,15 @@ use crate::Error;
 use chrono::Duration;
 use chrono::offset::Utc;
 
+
+// Session struct, describing created Session
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct Session {
+  pub id: i32,
+  pub key: String,
+  pub until: sqlx::types::chrono::NaiveDateTime,
+}
+
 // Login form struct
 #[derive(serde::Deserialize)]
 pub struct Login {
@@ -13,19 +22,12 @@ pub struct Login {
   extended: bool, // If true we make session last longer
 }
 
-// Session struct, describing created Session
-#[derive(Debug, serde::Serialize)]
-pub struct Session {
-  pub key: String,
-  pub until: sqlx::types::chrono::NaiveDateTime,
-}
-
 // Specifically designed login handler that behaves identically no matter
 // if the account exists or not and if the password matches or not
 //
 // Take a post request with login data
 // convert it into Some session key if valid
-// instead gives none if input was invalid
+// if input was invalid returns none
 pub async fn login(
   state: &'static State,
   form: Login,
@@ -69,7 +71,7 @@ async fn login_inner(
   // Get the user from database
   // if none found, exit early
   let user = match sqlx::query!(
-    "SELECT id,username,pass,admin FROM users WHERE username = $1",
+    "SELECT id,username,pass,locked,admin FROM users WHERE username = $1",
     form.username,
   )
     .fetch_optional(&state.db_pool)
@@ -101,6 +103,11 @@ async fn login_inner(
     _ => (),
   };
 
+  // Finally, check if the user account is locked
+  if user.locked {
+    return Err(Error::AccountLocked);
+  }
+
   // If we get here we should create a random key
   // The risk of collision is around 1 in the number of atoms on earth
   // so don't even bother checking
@@ -115,7 +122,7 @@ async fn login_inner(
 
   // Make the database insert and return the session key
   let ret = sqlx::query_as!( Session,
-    "INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3) RETURNING key, until",
+    "INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3) RETURNING id, key, until",
     user.id,
     &key,
     &until,

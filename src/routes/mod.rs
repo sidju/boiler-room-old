@@ -1,7 +1,11 @@
 use std::convert::Infallible;
-use crate::{State, Error, Reply};
-
 use hyper::{StatusCode, Method};
+use serde::{Serialize, Deserialize};
+use sqlx::types::chrono::NaiveDateTime;
+
+use crate::{State, Error, Reply};
+use crate::auth::Permissions;
+use crate::sqlx_order;
 
 mod utils;
 pub use utils::*;
@@ -42,7 +46,9 @@ async fn route(
   match path_vec.pop().as_deref() {
     None | Some("") => (),
     Some(unexpected) => {
-      panic!("Unexpected data before first / in path: \"{}\"", unexpected);
+      return Err(Error::BadRequest(
+        format!("Unexpected data ({}) before first '/' in path.", unexpected)
+      ));
     },
   };
 

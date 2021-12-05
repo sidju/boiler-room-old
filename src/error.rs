@@ -3,8 +3,9 @@
 
 use crate::Reply;
 use hyper::{Body, Response, Method, StatusCode};
+use hyper::header::HeaderValue;
 use argon2::password_hash;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,12 +20,14 @@ pub enum Error {
   InvalidHeader(hyper::header::ToStrError),
   InvalidJson(serde_json::Error),
   InvalidUrlEncoding(serde_urlencoded::de::Error),
+  InvalidIndexPath(std::num::ParseIntError),
 
   // Errors from internal input validation
   BadUsername(String),
   BadPassword,
   UsernameTaken,
   BadLogin,
+  AccountLocked,
 
   // Then wrapped errors that all equate an internal error when returned
   SessionKeyCollision, // Technically possible, but insanely unlikely
@@ -76,10 +79,15 @@ impl From<hyper::Error> for Error {
     Self::ConnectionError(e)
   }
 }
+impl From<std::num::ParseIntError> for Error {
+  fn from(e: std::num::ParseIntError) -> Self {
+    Self::InvalidIndexPath(e)
+  }
+}
 
 // Make errors autoconvert into a consistent and descriptive reply
-#[derive(Serialize)]
-enum JsonError {
+#[derive(Serialize, Deserialize, Debug)]
+pub enum JsonError {
   InternalError,
   PathNotFound(String),
   MethodNotFound(String),
@@ -90,11 +98,13 @@ enum JsonError {
   InvalidJson(String),
   InvalidUrlEncoding(String),
   InvalidHeader(String),
+  InvalidIndexPath(String),
 
   BadUsername(String),
   BadPassword,
   BadLogin,
   UsernameTaken,
+  AccountLocked,
 }
 impl Into<Body> for JsonError {
   fn into(self) -> Body {
@@ -132,6 +142,9 @@ impl Reply for Error {
       Self::InvalidHeader(e) => {
         (StatusCode::BAD_REQUEST, JsonError::InvalidHeader(format!("{}", e)))
       },
+      Self::InvalidIndexPath(e) => {
+        (StatusCode::BAD_REQUEST, JsonError::InvalidIndexPath(format!("{}", e)))
+      },
 
       // User input errors
       Self::BadUsername(s) => {
@@ -145,6 +158,9 @@ impl Reply for Error {
       },
       Self::BadLogin => {
         (StatusCode::UNAUTHORIZED, JsonError::BadLogin)
+      },
+      Self::AccountLocked => {
+        (StatusCode::UNAUTHORIZED, JsonError::AccountLocked)
       },
 
       // Internal errors (which need logging)
@@ -174,6 +190,7 @@ impl Reply for Error {
       },
     };
     let mut re = Response::new(body.into());
+    re.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
     *re.status_mut() = status;
     re
   }

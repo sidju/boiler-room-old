@@ -3,6 +3,12 @@ use serde::{Serialize, de::DeserializeOwned};
 use hyper::header::HeaderValue;
 use hyper::body::{aggregate, Buf};
 
+pub fn empty() -> Result<Response, Error> {
+  let mut re = Response::new("".into());
+  *re.status_mut() = StatusCode::NO_CONTENT;
+  Ok(re)
+}
+
 pub fn json <T: Serialize + ?Sized> (data: &T) -> Result<Response, Error> {
   let mut re = Response::new(serde_json::to_string(data)?.into());
   re.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
@@ -19,7 +25,7 @@ pub fn get_header<'a>(
   } )
 }
 
-pub async fn from_body <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
+pub async fn from_form <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
   // Verify content type
   let content_type = req.headers().get("Content-Type")
     .map(|x| x.to_str().unwrap_or(""))
@@ -38,18 +44,50 @@ pub async fn from_body <T: DeserializeOwned> (req: &mut Request) -> Result<T, Er
   )?;
   Ok(data)
 }
+pub async fn from_json <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
+  // Verify content type
+  let content_type = req.headers().get("Content-Type")
+    .map(|x| x.to_str().unwrap_or(""))
+    .unwrap_or("")
+  ;
+  if "application/json" != content_type {
+    return Err(Error::BadRequest(
+      format!("Expected Content-Type to be 'application/json', found {}", content_type)
+    ));
+  }
+  // Try to parse
+  let data: T = serde_json::from_reader(
+    aggregate(req.body_mut())
+      .await
+      ?
+      .reader()
+  )?;
+  Ok(data)
+}
+pub fn parse_filter <T: DeserializeOwned> (req: &Request) -> Result<T, Error> {
+  let query_str = req.uri().query().unwrap_or("");
+  let filter: T = serde_urlencoded::from_str(query_str)?;
+  Ok(filter)
+}
 
-pub fn verify_method_path_end(
+pub fn verify_path_end(
   path_vec: &Vec<String>,
   req: &Request,
-  expected_method: &Method,
 ) -> Result<(), Error> {
   if !path_vec.is_empty() {
     Err(Error::PathNotFound(
       format!("{}", req.uri().path())
     ))
   }
-  else if req.method() != expected_method {
+  else {
+    Ok(())
+  }
+}
+pub fn verify_method(
+  req: &Request,
+  expected_method: &Method,
+) -> Result<(), Error> {
+  if req.method() != expected_method {
     Err(Error::MethodNotFound(
       req.method().clone()
     ))
@@ -57,6 +95,15 @@ pub fn verify_method_path_end(
   else {
     Ok(())
   }
+}
+pub fn verify_method_path_end(
+  path_vec: &Vec<String>,
+  req: &Request,
+  expected_method: &Method,
+) -> Result<(), Error> {
+  verify_path_end(path_vec, req)?;
+  verify_method(req, expected_method)?;
+  Ok(())
 }
 
 // Unwrap a key expecting bearer auth type

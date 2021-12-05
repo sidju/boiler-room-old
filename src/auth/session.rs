@@ -1,7 +1,20 @@
 use crate::State;
 use crate::Error;
 
-use super::Permissions;
+
+// The struct given to each handler
+// It should contain everything needed to know
+// the user and its permissions
+#[derive(serde::Serialize, Debug)]
+pub struct Permissions {
+  // For use by html rendering handlers to print in top-bar
+  pub username: String,
+  // To identify if the current user owns a resource
+  pub userid: i32,
+  // To identify if the current user has admin perms
+  pub admin: bool,
+}
+
 
 // An async task that clears out outdated sessions every hour
 // Runs indefinitely

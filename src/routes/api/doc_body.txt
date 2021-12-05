@@ -1,0 +1,58 @@
+Public paths:
+  login:
+    POST:
+      Create (and get) a session.
+      Takes a json-encoded form containing username(string), password(string) and
+      extended(bool as string, 'true' or 'false').
+      The extended flag defines wether the session is valid for 1 day (if false) or
+      1 year (if true).
+      If successful returns session data as a json body, containing id(int),
+      key(string) and time of expiry(datetime in UTC).
+
+User path's:
+  logout:
+    POST:
+      Delete current session.
+      Takes any post (data/encoding ignored) and deletes the session used to access
+      the handler.
+      If successful returns nothing (HTTP status 204).
+  user:
+    GET:
+      Get current user.
+      Returns current user's info (id, username, admin or not) as json body.
+    sessions:
+      GET:
+        Get all sessions owned by user.
+        Accepts filters in the query part of the URI:
+          id_mte (integer that id is more than or equals),
+          id_lte (integer than id is less than or equals),
+          until_mte (timestamp that until is more than or equals),
+          until_lte (timestamp that until is less than or equals),
+          order_by (string, one of 'id_asc', 'id_desc', 'until_asc'(default) or 'until_desc'),
+          limit (integer, number of rows to get from the DB, otherwise unlimited).
+        (Can be freely combined.)
+        Returns id and end of validity for each matching session (up to limit).
+        (If you wish to get another lump of sessions, offset the filters based on ordering)
+        If no sessions match returns status 204.
+      $id:
+        DELETE:
+          Deletes the session with the given id. Reports not found if not owned by current user.
+    password:
+      POST:
+        Change the user's password.
+        Takes a json-encoded form containing old_password(string),
+        new_password(string) and clear_sessions(bool as string, 'true' or 'false').
+        If old_password matches current password hash and new_password equals
+        new_password_verification the new password is set and an empty response
+        (HTTP status 204) returned.
+        If clear_sessions is set and the transaction is a success all the user's
+        sessions are deleted.
+
+Admin path's:
+  admin:
+    GET:
+      Returns documentation for admin API.
+
+
+Errors:
+todo

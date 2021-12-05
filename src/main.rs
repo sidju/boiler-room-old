@@ -14,6 +14,9 @@ mod auth;
 mod db;
 mod routes;
 
+#[cfg(test)]
+mod test;
+
 #[tokio::main]
 async fn main() {
   let state = init_state().await;
@@ -21,6 +24,13 @@ async fn main() {
   // Define the socket to bind to
   let addr = SocketAddr::from( ([0,0,0,0], 8080) );
 
+  run_server(state, addr).await
+}
+
+pub (crate) async fn run_server(
+  state: &'static State,
+  addr: SocketAddr,
+) {
   // Define what to do with requests
   // - A Service is a stateful worker that responds to one request at a time.
   //   service_fn creates a Service from a FnMut that accepts Request and returns a Response Future.
