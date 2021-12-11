@@ -33,7 +33,7 @@ pub async fn route(
         },
         &Method::PUT => {
           if userid < 1 { return Err(Error::MethodNotFound(req.method().clone())); }
-          let update: UpdateUser = from_json(&mut req).await?;
+          let update: UpdateUser = parse_json(&mut req).await?;
           let updated = sqlx::query_as!(super::ReturnableUser,
             "
 UPDATE users SET username = $2, admin = $3, locked = $4 WHERE id = $1

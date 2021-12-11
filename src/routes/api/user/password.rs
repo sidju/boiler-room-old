@@ -15,7 +15,7 @@ pub async fn route(
 ) -> Result<Response, Error> {
   verify_method_path_end(&path_vec, &req, &Method::POST)?;
   // Parse out request
-  let password_change: PasswordChange = from_json(&mut req).await?;
+  let password_change: PasswordChange = parse_json(&mut req).await?;
   // Verify current session via password in password_change
   let user_hash = match sqlx::query!(
     "SELECT pass FROM users WHERE id = $1",

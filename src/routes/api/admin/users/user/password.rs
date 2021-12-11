@@ -36,7 +36,7 @@ pub async fn route(
       empty()
     },
     &Method::POST => {
-      let query: PasswordChange = from_json(&mut req).await?;
+      let query: PasswordChange = parse_json(&mut req).await?;
     
       // Verify the admin_password, so it takes more than a session key to
       // create unlimited session keys

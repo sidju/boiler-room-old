@@ -96,7 +96,7 @@ LIMIT $7
           }
         },
         &Method::POST => {
-          let new_user: NewUser = from_json(&mut req).await?;
+          let new_user: NewUser = parse_json(&mut req).await?;
           let created_user = sqlx::query_as!( ReturnableUser,
             "
 INSERT INTO users(username,locked,admin) VALUES($1,$2,$3)

@@ -16,7 +16,7 @@ pub async fn route(
   userid: i32,
 ) -> Result<Response, Error> {
   verify_method_path_end(&path_vec, &req, &Method::POST)?;
-  let query: Impersonate = from_json(&mut req).await?;
+  let query: Impersonate = parse_json(&mut req).await?;
 
   // Verify the admin_password, so it takes more than a session key to
   // create unlimited session keys

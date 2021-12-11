@@ -32,7 +32,7 @@ pub fn get_header<'a>(
   } )
 }
 
-pub async fn from_form <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
+pub async fn parse_form <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
   // Verify content type
   let content_type = req.headers().get("Content-Type")
     .map(|x| x.to_str().unwrap_or(""))
@@ -51,7 +51,7 @@ pub async fn from_form <T: DeserializeOwned> (req: &mut Request) -> Result<T, Er
   )?;
   Ok(data)
 }
-pub async fn from_json <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
+pub async fn parse_json <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
   // Verify content type
   let content_type = req.headers().get("Content-Type")
     .map(|x| x.to_str().unwrap_or(""))

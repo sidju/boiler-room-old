@@ -17,7 +17,7 @@ pub async fn route(
     Some("login") => {
       verify_method_path_end(&path_vec, &req, &Method::POST)?;
       // Parse out request
-      let credentials: Login = from_json(&mut req).await?;
+      let credentials: Login = parse_json(&mut req).await?;
       // Call login handler
       let session = crate::auth::login(state, credentials).await?;
       // Slightly wrap up the result
