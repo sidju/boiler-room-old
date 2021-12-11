@@ -23,7 +23,6 @@ pub enum Error {
   InvalidIndexPath(std::num::ParseIntError),
 
   // Errors from internal input validation
-  BadUsername(String),
   BadPassword,
   UsernameTaken,
   BadLogin,
@@ -100,7 +99,6 @@ pub enum JsonError {
   InvalidHeader(String),
   InvalidIndexPath(String),
 
-  BadUsername(String),
   BadPassword,
   BadLogin,
   UsernameTaken,
@@ -147,9 +145,6 @@ impl Reply for Error {
       },
 
       // User input errors
-      Self::BadUsername(s) => {
-        (StatusCode::BAD_REQUEST, JsonError::BadUsername(s))
-      },
       Self::BadPassword => {
         (StatusCode::BAD_REQUEST, JsonError::BadPassword)
       },

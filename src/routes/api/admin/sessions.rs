@@ -41,10 +41,8 @@ pub async fn route(
   state: &'static State,
   req: Request,
   mut path_vec: Vec<String>,
-  _permissions: Permissions
 ) -> Result<Response, Error> {
   match path_vec.pop().as_deref() {
-    // In base path get a list of the IDs the user can access
     None | Some("") => {
       verify_method_path_end(&path_vec, &req, &Method::GET)?;
       // Parse out query part of URI into filter
@@ -87,7 +85,6 @@ LIMIT $6
       }
     },
     // If there is more than base path, parse it to a session ID and get it
-    // (of course filtering to IDs owned by user.
     Some(sessionid) => {
       verify_method_path_end(&path_vec, &req, &Method::DELETE)?;
       let parsed = sessionid.parse::<i32>()?;

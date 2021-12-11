@@ -1,0 +1,5 @@
+- Create utility trait for transforming responses (such as a builder pattern set_status)
+- Create utility trait for extracting data from requests
+- Look over error types and handling
+  - Especially note the constraint checking errors in some queries and if they can be unified.
+- Probably do a once-over rewrite, to clear out needless map_err and into calls

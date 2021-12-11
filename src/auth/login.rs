@@ -128,7 +128,15 @@ async fn login_inner(
     &until,
   )
     .fetch_one(&state.db_pool)
-    .await?
+    .await
+    .map_err(|e| -> Error { match e {
+      sqlx::Error::Database(ref err) => {
+        if err.constraint() == Some("key") { Error::SessionKeyCollision }
+        else { e.into() }
+      },
+      _ => e.into(),
+    }})
+    ?
   ;
 
   Ok(Some(ret))

@@ -3,6 +3,13 @@ use serde::{Serialize, de::DeserializeOwned};
 use hyper::header::HeaderValue;
 use hyper::body::{aggregate, Buf};
 
+pub fn set_status(re: Result<Response, Error>, status: StatusCode) -> Result<Response, Error> {
+  re.map(|mut r| {
+    *r.status_mut() = status;
+    r
+  })
+}
+
 pub fn empty() -> Result<Response, Error> {
   let mut re = Response::new("".into());
   *re.status_mut() = StatusCode::NO_CONTENT;
