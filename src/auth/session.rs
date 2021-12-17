@@ -70,7 +70,7 @@ pub async fn require_session(
       Ok(s)
     },
     None => {
-      Err(Error::Unauthorized)
+      Err(Error::unauthorized())
     },
   }
 }
@@ -85,6 +85,6 @@ pub async fn require_admin(
   if data.admin {
     Ok(data)
   } else {
-    Err(Error::Forbidden)
+    Err(Error::forbidden())
   }
 }

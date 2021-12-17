@@ -1,192 +1,221 @@
-//! This both contains a custom rejection for returning when there may be another route matching
-//! and an error for when the current route is the correct one but something is wrong
+// Error type for the whole project
 
+// Needed types
 use crate::Reply;
-use hyper::{Body, Response, Method, StatusCode};
+use hyper::{Body, Response, Request, StatusCode};
 use hyper::header::HeaderValue;
 use argon2::password_hash;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
+// Public errors to wrap
+use hyper::header::ToStrError as UnreadableHeaderError;
+use serde_json::Error as JsonError;
+use serde_urlencoded::de::Error as UrlEncodingError;
+use std::num::ParseIntError;
+// Private errors to wrap
+use tokio::task::JoinError;
+use tokio::sync::AcquireError;
+use password_hash::Error as HashingError;
+use sqlx::Error as DbError;
+use hyper::Error as ConnectionError;
 
+// Then an object for private errors
+// This only returns "internal server error" to user
 #[derive(Debug)]
-pub enum Error {
-  // First routing errors
-  PathNotFound(String),
-  MethodNotFound(Method),
-  BadRequest(String),
-  Unauthorized,
-  Forbidden,
-
-  // Parsing errors
-  InvalidHeader(hyper::header::ToStrError),
-  InvalidJson(serde_json::Error),
-  InvalidUrlEncoding(serde_urlencoded::de::Error),
-  InvalidIndexPath(std::num::ParseIntError),
-
-  // Errors from internal input validation
-  BadPassword,
-  UsernameTaken,
-  BadLogin,
-  AccountLocked,
-
-  // Then wrapped errors that all equate an internal error when returned
-  SessionKeyCollision, // Technically possible, but insanely unlikely
-  Join(tokio::task::JoinError),
-  Semaphore(tokio::sync::AcquireError),
-  Hash(password_hash::Error),
-  Db(sqlx::Error),
-  ConnectionError(hyper::Error),
+pub enum InternalError {
+  SessionKeyCollision,
+  Join(JoinError),
+  Semaphore(AcquireError),
+  Hash(HashingError),
+  Db(DbError),
+  Connection(ConnectionError),
 }
-
-// To enable using '?' we implement from for the wrapped errors
-impl From<tokio::task::JoinError> for Error {
-  fn from(e: tokio::task::JoinError) -> Self {
-    Self::Join(e)
-  }
-}
-impl From<tokio::sync::AcquireError> for Error {
-  fn from(e: tokio::sync::AcquireError) -> Self {
-    Self::Semaphore(e)
-  }
-}
-impl From<password_hash::Error> for Error {
-  fn from(e: password_hash::Error) -> Self {
-    Self::Hash(e)
-  }
-}
-impl From<sqlx::Error> for Error {
-  fn from(e: sqlx::Error) -> Self {
-    Self::Db(e)
-  }
-}
-impl From<serde_json::Error> for Error {
-  fn from(e: serde_json::Error) -> Self {
-    Self::InvalidJson(e)
-  }
-}
-impl From<serde_urlencoded::de::Error> for Error {
-  fn from(e: serde_urlencoded::de::Error) -> Self {
-    Self::InvalidUrlEncoding(e)
-  }
-}
-impl From<hyper::header::ToStrError> for Error {
-  fn from(e: hyper::header::ToStrError) -> Self {
-    Self::InvalidHeader(e)
-  }
-}
-impl From<hyper::Error> for Error {
-  fn from(e: hyper::Error) -> Self {
-    Self::ConnectionError(e)
-  }
-}
-impl From<std::num::ParseIntError> for Error {
-  fn from(e: std::num::ParseIntError) -> Self {
-    Self::InvalidIndexPath(e)
+impl Reply for InternalError {
+  fn into_response(self) -> Response<Body> {
+    eprintln!("{:?}", &self);
+    let mut re = Response::new("Internal server error".into());
+    *re.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+    re.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
+    re
   }
 }
 
-// Make errors autoconvert into a consistent and descriptive reply
-#[derive(Serialize, Deserialize, Debug)]
-pub enum JsonError {
-  InternalError,
+// Declare an object for public errors
+// These are fully returned as json to API users
+#[derive(Serialize, Debug)]
+pub enum ClientError {
+  // We start with simple routing errors
   PathNotFound(String),
   MethodNotFound(String),
-  BadRequest(String),
   Unauthorized,
   Forbidden,
 
+  // Then parsing errors
+  PathDataBeforeRoot(String),
+  UnreadableHeader(String),
+  InvalidContentLength(String),
+  InvalidContentType(String),
   InvalidJson(String),
   InvalidUrlEncoding(String),
-  InvalidHeader(String),
   InvalidIndexPath(String),
 
+  // Finally non-parsing user errors
   BadPassword,
-  BadLogin,
   UsernameTaken,
+  BadLogin,
   AccountLocked,
 }
-impl Into<Body> for JsonError {
-  fn into(self) -> Body {
-    serde_json::to_string(&self).unwrap().into()
+impl Reply for ClientError {
+  fn into_response(self) -> Response<Body> {
+    let mut re = Response::new(serde_json::to_string(&self).unwrap().into());
+    *re.status_mut() = match self {
+      Self::PathNotFound(_) => StatusCode::NOT_FOUND,
+      Self::MethodNotFound(_) => StatusCode::METHOD_NOT_ALLOWED,
+      Self::Unauthorized => StatusCode::UNAUTHORIZED,
+      Self::Forbidden => StatusCode::FORBIDDEN,
+
+      Self::PathDataBeforeRoot(_) => StatusCode::BAD_REQUEST,
+      Self::UnreadableHeader(_) => StatusCode::BAD_REQUEST,
+      Self::InvalidContentLength(_) => StatusCode::BAD_REQUEST,
+      Self::InvalidContentType(_) => StatusCode::BAD_REQUEST,
+      Self::InvalidJson(_) => StatusCode::BAD_REQUEST,
+      Self::InvalidUrlEncoding(_) => StatusCode::BAD_REQUEST,
+      Self::InvalidIndexPath(_) => StatusCode::BAD_REQUEST,
+
+      Self::BadPassword => StatusCode::BAD_REQUEST,
+      Self::UsernameTaken => StatusCode::BAD_REQUEST,
+      Self::BadLogin => StatusCode::UNAUTHORIZED,
+      Self::AccountLocked => StatusCode::UNAUTHORIZED,
+    };
+    re.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
+    re
   }
 }
 
+// The Enum over either internal or client errors
+// On this we implement From and relevant utilities
+#[derive(Debug)]
+pub enum Error {
+  InternalError(InternalError),
+  ClientError(ClientError),
+}
+// Utility constructors
+impl Error {
+  pub fn session_key_collision() -> Self {
+    Self::InternalError(InternalError::SessionKeyCollision)
+  }
+  pub fn path_data_before_root(data: String) -> Self {
+    Self::ClientError(ClientError::PathDataBeforeRoot(data))
+  }
+  pub fn path_not_found(req: &Request<Body>) -> Self {
+    Self::ClientError(ClientError::PathNotFound(req.uri().path().to_owned()))
+  }
+  pub fn method_not_found(req: &Request<Body>) -> Self {
+    Self::ClientError(ClientError::MethodNotFound(req.method().to_string()))
+  }
+  pub fn unauthorized() -> Self {
+    Self::ClientError(ClientError::Unauthorized)
+  }
+  pub fn forbidden() -> Self {
+    Self::ClientError(ClientError::Forbidden)
+  }
+
+  // Most of the parsing errors are created by From
+  // but not these
+  pub fn unreadable_header(e: UnreadableHeaderError, header: &str) -> Self {
+    Self::ClientError(ClientError::UnreadableHeader(
+      format!("Error reading header {}: {}", header, e)
+    ))
+  }
+  pub fn content_length_missing() -> Self {
+    Self::ClientError(ClientError::InvalidContentLength("No content length given".to_string()))
+  }
+  pub fn content_length_not_int(err: ParseIntError) -> Self {
+    Self::ClientError(ClientError::InvalidContentLength(format!("Invalid unsigned int: {}", err)))
+  }
+  pub fn content_length_too_large(parsed: usize, max: usize) -> Self {
+    Self::ClientError(ClientError::InvalidContentLength(
+      format!("Too large. Maximum allowed is {}, received {}", max, parsed)
+    ))
+  }
+  pub fn content_length_mismatch(given: usize, promised: usize) -> Self {
+    let at_least = if given > promised { " at least" } else { "" };
+    Self::ClientError(ClientError::InvalidContentLength(
+      format!("Mismatch. Header is {}, received{} {}", promised, at_least, given)
+    ))
+  }
+  pub fn invalid_content_type(parsed: &str, expected: &str) -> Self {
+    Self::ClientError(ClientError::InvalidContentType(
+      format!("Expected {}, received {}", parsed, expected)
+    ))
+  }
+
+  // Finally the input processing errors
+  pub fn bad_password() -> Self {
+    Self::ClientError(ClientError::BadPassword)
+  }
+  pub fn username_taken() -> Self {
+    Self::ClientError(ClientError::UsernameTaken)
+  }
+  pub fn bad_login() -> Self {
+    Self::ClientError(ClientError::BadLogin)
+  }
+  pub fn account_locked() -> Self {
+    Self::ClientError(ClientError::AccountLocked)
+  }
+}
+
+// Implement Reply for Error, so that error messages
+// are automatically created and returned on errors
 impl Reply for Error {
   fn into_response(self) -> Response<Body> {
-    let (status,body) = match self {
-      // Routing errors
-      Self::PathNotFound(s) => {
-        (StatusCode::NOT_FOUND, JsonError::PathNotFound(s))
-      },
-      Self::MethodNotFound(m) => {
-        (StatusCode::METHOD_NOT_ALLOWED, JsonError::MethodNotFound( format!("{}", m) ))
-      },
-      Self::BadRequest(s) => {
-        (StatusCode::BAD_REQUEST, JsonError::BadRequest(s))
-      },
-      Self::Unauthorized => {
-        (StatusCode::UNAUTHORIZED, JsonError::Unauthorized)
-      },
-      Self::Forbidden => {
-        (StatusCode::FORBIDDEN, JsonError::Forbidden)
-      },
+    match self {
+      Self::InternalError(e) => { e.into_response() },
+      Self::ClientError(e) => { e.into_response() },
+    }
+  }
+}
 
-      // Input formatting errors
-      Self::InvalidJson(e) => {
-        (StatusCode::BAD_REQUEST, JsonError::InvalidJson(format!("{}", e)))
-      },
-      Self::InvalidUrlEncoding(e) => {
-        (StatusCode::BAD_REQUEST, JsonError::InvalidUrlEncoding(format!("{}", e)))
-      },
-      Self::InvalidHeader(e) => {
-        (StatusCode::BAD_REQUEST, JsonError::InvalidHeader(format!("{}", e)))
-      },
-      Self::InvalidIndexPath(e) => {
-        (StatusCode::BAD_REQUEST, JsonError::InvalidIndexPath(format!("{}", e)))
-      },
-
-      // User input errors
-      Self::BadPassword => {
-        (StatusCode::BAD_REQUEST, JsonError::BadPassword)
-      },
-      Self::UsernameTaken => {
-        (StatusCode::BAD_REQUEST, JsonError::UsernameTaken)
-      },
-      Self::BadLogin => {
-        (StatusCode::UNAUTHORIZED, JsonError::BadLogin)
-      },
-      Self::AccountLocked => {
-        (StatusCode::UNAUTHORIZED, JsonError::AccountLocked)
-      },
-
-      // Internal errors (which need logging)
-      Self::SessionKeyCollision => {
-        eprintln!("Session key collision occured. If this happens twice something is wrong.");
-        (StatusCode::INTERNAL_SERVER_ERROR, JsonError::InternalError)
-      },
-      Self::Join(err) => {
-        eprintln!("Error joining blocking task. {:?}", err);
-        (StatusCode::INTERNAL_SERVER_ERROR, JsonError::InternalError)
-      },
-      Self::Semaphore(err) => {
-        eprintln!("Error getting semaphore. {:?}", err);
-        (StatusCode::INTERNAL_SERVER_ERROR, JsonError::InternalError)
-      },
-      Self::Hash(err) => {
-        eprintln!("Error hashing password. {:?}", err);
-        (StatusCode::INTERNAL_SERVER_ERROR, JsonError::InternalError)
-      },
-      Self::Db(err) => {
-        eprintln!("Database error. {:?}", err);
-        (StatusCode::INTERNAL_SERVER_ERROR, JsonError::InternalError)
-      },
-      Self::ConnectionError(err) => {
-        eprintln!("Connection error. {:?}", err);
-        (StatusCode::INTERNAL_SERVER_ERROR, JsonError::InternalError)
-      },
-    };
-    let mut re = Response::new(body.into());
-    re.headers_mut().insert("Content-Type", HeaderValue::from_static("application/json"));
-    *re.status_mut() = status;
-    re
+// Implement From for library errors
+// Note that the from for ParseIntError is for the most common origin
+// but it can be caused by any std::parse::<integer> call, so use
+// map_err with a specific utility function for other causes.
+impl From<JsonError> for Error {
+  fn from(e: JsonError) -> Self {
+    Self::ClientError(ClientError::InvalidJson(format!("{}", e)))
+  }
+}
+impl From<UrlEncodingError> for Error {
+  fn from(e: UrlEncodingError) -> Self {
+    Self::ClientError(ClientError::InvalidUrlEncoding(format!("{}", e)))
+  }
+}
+impl From<ParseIntError> for Error {
+  fn from(e: ParseIntError) -> Self {
+    Self::ClientError(ClientError::InvalidIndexPath(format!("{}", e)))
+  }
+}
+impl From<JoinError> for Error {
+  fn from(e: JoinError) -> Self {
+    Self::InternalError(InternalError::Join(e))
+  }
+}
+impl From<AcquireError> for Error {
+  fn from(e: AcquireError) -> Self {
+    Self::InternalError(InternalError::Semaphore(e))
+  }
+}
+impl From<HashingError> for Error {
+  fn from(e: HashingError) -> Self {
+    Self::InternalError(InternalError::Hash(e))
+  }
+}
+impl From<DbError> for Error {
+  fn from(e: DbError) -> Self {
+    Self::InternalError(InternalError::Db(e))
+  }
+}
+impl From<ConnectionError> for Error {
+  fn from(e: ConnectionError) -> Self {
+    Self::InternalError(InternalError::Connection(e))
   }
 }

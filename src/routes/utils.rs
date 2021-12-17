@@ -1,7 +1,6 @@
 use super::*;
 use serde::{Serialize, de::DeserializeOwned};
 use hyper::header::HeaderValue;
-use hyper::body::{aggregate, Buf};
 
 pub fn set_status(re: Result<Response, Error>, status: StatusCode) -> Result<Response, Error> {
   re.map(|mut r| {
@@ -27,48 +26,91 @@ pub fn get_header<'a>(
   header_name: &str,
 ) -> Result<Option<&'a str>, Error> {
   Ok( match req.headers().get(header_name) {
-    Some(val) => Some(val.to_str()?),
+    Some(val) => Some(
+      val
+        .to_str()
+        .map_err(|e| Error::unreadable_header(e, header_name))?
+    ),
     None => None,
   } )
 }
 
-pub async fn parse_form <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
-  // Verify content type
-  let content_type = req.headers().get("Content-Type")
-    .map(|x| x.to_str().unwrap_or(""))
-  ;
-  if Some("application/x-www-form-urlencoded") != content_type {
-    return Err(Error::BadRequest(
-      "Expected Content-Type to be 'application/x-www-form-urlencoded'".to_string()
-    ));
+pub fn validate_get_content_len<'a>(
+  req: &'a Request,
+  max_len: usize,
+) -> Result<usize, Error> {
+  let header = get_header(&req, "Content-Length")?;
+  if let Some(x) = header {
+    let length = x.parse::<usize>().map_err(Error::content_length_not_int)?;
+    if length <= max_len {
+      Ok(length)
+    } else {
+      Err(Error::content_length_too_large(length, max_len))
+    }
+  } else {
+    Err(Error::content_length_missing())
   }
+}
+
+// Serde performs better with continuous existing memory,
+// so this is the most performant solution
+pub async fn get_body(req: &mut Request, max_len: usize) -> Result<Vec<u8>, Error> {
+  use hyper::body::HttpBody;
+
+  // First we validate and set up
+  let expected_len = validate_get_content_len(req, max_len)?;
+  let mut bytes = Vec::with_capacity(expected_len);
+  let body = req.body_mut();
+  futures::pin_mut!(body);
+
+  // Then we loop until we either overshoot Content-Len and error or
+  // run out of data and return what we got
+  while let Some(result) = body.data().await {
+    let data = result?;
+    // Check against overrunning
+    if bytes.len() + data.len() > expected_len {
+      // If we overrun try to estimate length of received request
+      let estimate = bytes.len() + data.len() + body.size_hint().lower() as usize;
+      return Err(Error::content_length_mismatch(estimate, expected_len));
+    }
+
+    bytes.extend_from_slice(&data);
+  }
+
+  // Finally check against undershooting
+  if bytes.len() < expected_len {
+    Err(Error::content_length_mismatch(bytes.len(), expected_len))
+  } else {
+    Ok(bytes)
+  }
+}
+
+pub async fn parse_form <T: DeserializeOwned> (req: &mut Request, max_len: usize) -> Result<T, Error> {
+  // Verify content type
+  let content_type = get_header(req, "Content-Type")?
+    .unwrap_or("")
+  ;
+  if "application/x-www-form-urlencoded" != content_type {
+    return Err(Error::invalid_content_type(content_type, "application/x-www-form-urlencoded"));
+  }
+  // Get body
+  let bytes = get_body(req, max_len).await?;
   // Try to parse
-  let data: T = serde_urlencoded::from_reader(
-    aggregate(req.body_mut())
-      .await
-      ?
-      .reader()
-  )?;
+  let data: T = serde_urlencoded::from_bytes(&bytes)?;
   Ok(data)
 }
-pub async fn parse_json <T: DeserializeOwned> (req: &mut Request) -> Result<T, Error> {
+pub async fn parse_json <T: DeserializeOwned> (req: &mut Request, max_len: usize) -> Result<T, Error> {
   // Verify content type
-  let content_type = req.headers().get("Content-Type")
-    .map(|x| x.to_str().unwrap_or(""))
+  let content_type = get_header(req, "Content-Type")?
     .unwrap_or("")
   ;
   if "application/json" != content_type {
-    return Err(Error::BadRequest(
-      format!("Expected Content-Type to be 'application/json', found {}", content_type)
-    ));
+    return Err(Error::invalid_content_type(content_type, "application/json"));
   }
+  // Get body
+  let bytes = get_body(req, max_len).await?;
   // Try to parse
-  let data: T = serde_json::from_reader(
-    aggregate(req.body_mut())
-      .await
-      ?
-      .reader()
-  )?;
+  let data: T = serde_json::from_slice(&bytes)?;
   Ok(data)
 }
 pub fn parse_filter <T: DeserializeOwned> (req: &Request) -> Result<T, Error> {
@@ -82,9 +124,7 @@ pub fn verify_path_end(
   req: &Request,
 ) -> Result<(), Error> {
   if !path_vec.is_empty() {
-    Err(Error::PathNotFound(
-      format!("{}", req.uri().path())
-    ))
+    Err(Error::path_not_found(req))
   }
   else {
     Ok(())
@@ -95,9 +135,7 @@ pub fn verify_method(
   expected_method: &Method,
 ) -> Result<(), Error> {
   if req.method() != expected_method {
-    Err(Error::MethodNotFound(
-      req.method().clone()
-    ))
+    Err(Error::method_not_found(req))
   }
   else {
     Ok(())

@@ -46,9 +46,7 @@ async fn route(
   match path_vec.pop().as_deref() {
     None | Some("") => (),
     Some(unexpected) => {
-      return Err(Error::BadRequest(
-        format!("Unexpected data ({}) before first '/' in path.", unexpected)
-      ));
+      return Err(Error::path_data_before_root(unexpected.to_string()));
     },
   };
 
@@ -65,7 +63,7 @@ async fn route(
       Ok(Response::new("Hello from root!".into()))
     },
     Some(_) => {
-      Err(Error::PathNotFound( format!("{}", req.uri().path()) ))
+      Err(Error::path_not_found(&req))
     },
   }
 }

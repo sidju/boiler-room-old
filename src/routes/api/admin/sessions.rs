@@ -94,14 +94,11 @@ LIMIT $6
       )
         .execute(&state.db_pool)
         .await
-        .map_err(Error::from)
         ?
         .rows_affected()
       ;
       match affected {
-        0 => Err(Error::PathNotFound(
-          format!("{}", req.uri().path())
-        )),
+        0 => Err(Error::path_not_found(&req)),
         _ => empty(),
       }
     },

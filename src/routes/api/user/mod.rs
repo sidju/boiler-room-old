@@ -46,8 +46,6 @@ pub async fn route(
         permissions,
       ).await
     },
-    Some(_) => Err(Error::PathNotFound(
-      format!("{}", req.uri().path())
-    )),
+    Some(_) => Err(Error::path_not_found(&req)),
   }
 }

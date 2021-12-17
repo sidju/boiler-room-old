@@ -36,7 +36,7 @@ pub async fn update_admin(
     hash,
   )
     .execute(db_pool)
-    .await
-    .map_err(|e| Error::Db(e))
-    .map(|_| ()) // Drop the number of rows affected
+    .await?
+  ;
+  Ok(())
 }

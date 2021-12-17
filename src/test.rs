@@ -19,6 +19,24 @@ use serde::de::DeserializeOwned;
 
 const TEST_SERVER_PORT: u16 = 38080;
 
+async fn print_json (res: &mut Response<Body>) {
+  if res.status() == hyper::StatusCode::NO_CONTENT {
+    println!("Empty body");
+    return;
+  }
+  let content_type = res.headers().get("Content-Type")
+    .map(|x| x.to_str().unwrap())
+    .unwrap()
+  ;
+  assert_eq!("application/json", content_type);
+  let bytes = hyper::body::to_bytes(res.body_mut())
+    .await
+    .unwrap()
+    .to_vec()
+  ;
+  let s = String::from_utf8(bytes).unwrap();
+  println!("{}", s);
+}
 async fn from_json <T: DeserializeOwned> (res: &mut Response<Body>) -> T {
   let content_type = res.headers().get("Content-Type")
     .map(|x| x.to_str().unwrap())
@@ -83,11 +101,9 @@ async fn integration_tests() {
   println!("Request to user login: {:?}", &request);
   let mut response = client.request(request).await.unwrap();
   println!("Response to user login: {:?}", response);
-//  let body: crate::error::JsonError = from_json(&mut response).await;
-//  println!("Body: {:?}", body);
   assert_eq!(StatusCode::CREATED, response.status());
   let user_session: crate::auth::Session = from_json(&mut response).await;
-  println!("{:?}", &user_session);
+  println!("{:?}", user_session);
   // Admin
   let request = Request::post( format!("http://127.0.0.1:{}/api/login", TEST_SERVER_PORT) )
     .header("Content-Type", "application/json")
@@ -97,8 +113,6 @@ async fn integration_tests() {
   println!("Request to admin login: {:?}", &request);
   let mut response = client.request(request).await.unwrap();
   println!("Response to admin login: {:?}", response);
-//  let body: crate::error::JsonError = from_json(&mut response).await;
-//  println!("Body: {:?}", body);
   assert_eq!(StatusCode::CREATED, response.status());
   let admin_session: crate::auth::Session = from_json(&mut response).await;
   println!("{:?}", &admin_session);
@@ -113,8 +127,7 @@ async fn integration_tests() {
   ;
   let mut response = client.request(request).await.unwrap();
   println!("Response to user login: {:?}", response);
-  let error: String = from_json(&mut response).await;
-  println!("{}", error);
+  print_json(&mut response).await;
   assert_eq!(StatusCode::UNAUTHORIZED, response.status());
   // Admin
   let request = Request::post( format!("http://127.0.0.1:{}/api/login", TEST_SERVER_PORT) )
@@ -124,8 +137,7 @@ async fn integration_tests() {
   ;
   let mut response = client.request(request).await.unwrap();
   println!("Response to admin login: {:?}", response);
-  let error: String = from_json(&mut response).await;
-  println!("{}", error);
+  print_json(&mut response).await;
   assert_eq!(StatusCode::UNAUTHORIZED, response.status());
 
 
@@ -133,20 +145,24 @@ async fn integration_tests() {
   // User
   let request = Request::post( format!("http://127.0.0.1:{}/api/logout", TEST_SERVER_PORT) )
     .header("Authorization", format!("bearer {}", user_session.key))
+    .header("Content-Length", "0")
     .body("".into())
     .unwrap()
   ;
-  let response = client.request(request).await.unwrap();
+  println!("Request: {:?}", &request);
+  let mut response = client.request(request).await.unwrap();
   println!("Response to user logout: {:?}", response);
+  print_json(&mut response).await;
+  assert_eq!(StatusCode::NO_CONTENT, response.status());
   // Admin
-
   let request = Request::post( format!("http://127.0.0.1:{}/api/logout", TEST_SERVER_PORT) )
     .header("Authorization", format!("bearer {}", admin_session.key))
     .body("".into())
     .unwrap()
   ;
-  let response = client.request(request).await.unwrap();
+  let mut response = client.request(request).await.unwrap();
   println!("Response to admin logout: {:?}", response);
+  print_json(&mut response).await;
   assert_eq!(StatusCode::NO_CONTENT, response.status());
 
 

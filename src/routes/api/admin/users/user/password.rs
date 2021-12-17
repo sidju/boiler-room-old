@@ -17,7 +17,7 @@ pub async fn route(
   verify_path_end(&path_vec, &req)?;
   match req.method() {
     &Method::DELETE => {
-      if userid < 1 { return Err(Error::MethodNotFound(req.method().clone())); }
+      if userid < 1 { return Err(Error::method_not_found(&req)); }
       sqlx::query!(
         "UPDATE users SET pass = NULL WHERE id = $1",
         userid,
@@ -36,7 +36,7 @@ pub async fn route(
       empty()
     },
     &Method::POST => {
-      let query: PasswordChange = parse_json(&mut req).await?;
+      let query: PasswordChange = parse_json(&mut req, state.max_content_len).await?;
     
       // Verify the admin_password, so it takes more than a session key to
       // create unlimited session keys
@@ -55,7 +55,7 @@ pub async fn route(
           // Normally impossible, since setting passhash to None
           // also deletes all sessions (but maybe race condition).
           // However, impersonate makes it possible again.
-          return Err(Error::BadLogin);
+          return Err(Error::bad_login());
         },
       };
       let correct_pass = crate::auth::hash::verify(
@@ -66,8 +66,8 @@ pub async fn route(
       )
         .await?
       ;
-      if !correct_pass { return Err(Error::BadLogin); }
-      if admin_user.locked { return Err(Error::AccountLocked); }
+      if !correct_pass { return Err(Error::bad_login()); }
+      if admin_user.locked { return Err(Error::account_locked()); }
 
       // Hash the new user password
       let new_hash = crate::auth::hash::hash(
@@ -98,6 +98,6 @@ pub async fn route(
       }
       empty()
     },
-    _ => Err(Error::MethodNotFound( req.method().clone() )),
+    _ => Err(Error::method_not_found(&req)),
   }
 }

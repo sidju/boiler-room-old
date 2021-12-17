@@ -105,7 +105,7 @@ async fn login_inner(
 
   // Finally, check if the user account is locked
   if user.locked {
-    return Err(Error::AccountLocked);
+    return Err(Error::account_locked());
   }
 
   // If we get here we should create a random key
@@ -131,7 +131,7 @@ async fn login_inner(
     .await
     .map_err(|e| -> Error { match e {
       sqlx::Error::Database(ref err) => {
-        if err.constraint() == Some("key") { Error::SessionKeyCollision }
+        if err.constraint() == Some("key") { Error::session_key_collision() }
         else { e.into() }
       },
       _ => e.into(),
@@ -158,6 +158,6 @@ pub async fn logout(
       ;
       Ok(())
     },
-    None => Err(Error::Unauthorized),
+    None => Err(Error::unauthorized()),
   }
 }

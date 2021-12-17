@@ -13,6 +13,7 @@ pub struct State {
 
   // Configurations used directly
   pub login_delay: u64,
+  pub max_content_len: usize,
 }
 
 pub async fn init_state() -> &'static State {
@@ -39,6 +40,11 @@ pub async fn init_state() -> &'static State {
     .expect("LOGIN_DELAY must be present in environment or .env.")
     .parse::<u64>()
     .expect("LOGIN_DELAY could not be parsed as an unsigned integer.")
+  ;
+  let max_content_len = var("MAX_CONTENT_LEN")
+    .expect("MAX_CONTENT_LEN must be present in environment or .env.")
+    .parse::<usize>()
+    .expect("MAX_CONTENT_LEN could not be parsed as an unsigned integer.")
   ;
 
   // When we have all needed data, construct objects
@@ -80,5 +86,6 @@ pub async fn init_state() -> &'static State {
     cpu_semaphore: cpu_semaphore,
     db_pool: db_pool,
     login_delay: login_delay,
+    max_content_len: max_content_len,
   } ) )
 }

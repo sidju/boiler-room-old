@@ -16,7 +16,7 @@ pub async fn route(
   userid: i32,
 ) -> Result<Response, Error> {
   verify_method_path_end(&path_vec, &req, &Method::POST)?;
-  let query: Impersonate = parse_json(&mut req).await?;
+  let query: Impersonate = parse_json(&mut req, state.max_content_len).await?;
 
   // Verify the admin_password, so it takes more than a session key to
   // create unlimited session keys
@@ -35,7 +35,7 @@ pub async fn route(
       // Normally impossible, since setting passhash to None
       // also deletes all sessions (but maybe race condition).
       // However, impersonate makes it possible again.
-      return Err(Error::BadLogin);
+      return Err(Error::bad_login());
     },
   };
   let correct_pass = crate::auth::hash::verify(
@@ -47,8 +47,8 @@ pub async fn route(
     .await?
   ;
 
-  if !correct_pass { return Err(Error::BadLogin); }
-  if admin_user.locked { return Err(Error::AccountLocked); }
+  if !correct_pass { return Err(Error::bad_login()); }
+  if admin_user.locked { return Err(Error::account_locked()); }
 
   // With all verification done we create the session
   let key = nanoid::nanoid!(32);
@@ -65,7 +65,7 @@ pub async fn route(
     .await
     .map_err(|e| -> Error { match e {
       sqlx::Error::Database(ref err) => {
-        if err.constraint() == Some("key") { Error::SessionKeyCollision }
+        if err.constraint() == Some("key") { Error::session_key_collision() }
         else { e.into() }
       },
       _ => e.into(),

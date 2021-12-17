@@ -15,7 +15,7 @@ pub async fn route(
 ) -> Result<Response, Error> {
   verify_method_path_end(&path_vec, &req, &Method::POST)?;
   // Parse out request
-  let password_change: PasswordChange = parse_json(&mut req).await?;
+  let password_change: PasswordChange = parse_json(&mut req, state.max_content_len).await?;
   // Verify current session via password in password_change
   let user_hash = match sqlx::query!(
     "SELECT pass FROM users WHERE id = $1",
@@ -26,7 +26,7 @@ pub async fn route(
     .pass
   {
     Some(pass) => pass,
-    None => { return Err(Error::Unauthorized); },
+    None => { return Err(Error::unauthorized()); },
   };
   if ! crate::auth::hash::verify(
     &state.cpu_semaphore,
@@ -35,7 +35,7 @@ pub async fn route(
     password_change.old_password,
   )
     .await?
-  { return Err(Error::Unauthorized); }
+  { return Err(Error::unauthorized()); }
   // When the user has been verified, apply the password change
   let new_hash = crate::auth::hash::hash(
     &state.cpu_semaphore,

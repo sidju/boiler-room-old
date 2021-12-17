@@ -96,7 +96,7 @@ LIMIT $7
           }
         },
         &Method::POST => {
-          let new_user: NewUser = parse_json(&mut req).await?;
+          let new_user: NewUser = parse_json(&mut req, state.max_content_len).await?;
           let created_user = sqlx::query_as!( ReturnableUser,
             "
 INSERT INTO users(username,locked,admin) VALUES($1,$2,$3)
@@ -111,7 +111,7 @@ RETURNING id,username,admin,locked
             .map_err(|e| -> Error { match e {
               sqlx::Error::Database(ref err) => {
                 match err.constraint() {
-                  Some("username") => Error::UsernameTaken,
+                  Some("username") => Error::username_taken(),
                   _ => e.into()
                 }
               },
@@ -121,7 +121,7 @@ RETURNING id,username,admin,locked
           ;
           set_status(json(&created_user), StatusCode::CREATED)
         },
-        _ => Err(Error::MethodNotFound( req.method().clone() )),
+        _ => Err(Error::method_not_found(&req)),
       }
     },
     // If there is more than base path parse it as a userid

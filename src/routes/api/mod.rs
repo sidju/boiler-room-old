@@ -17,7 +17,7 @@ pub async fn route(
     Some("login") => {
       verify_method_path_end(&path_vec, &req, &Method::POST)?;
       // Parse out request
-      let credentials: Login = parse_json(&mut req).await?;
+      let credentials: Login = parse_json(&mut req, state.max_content_len).await?;
       // Call login handler
       let session = crate::auth::login(state, credentials).await?;
       // Slightly wrap up the result
@@ -29,7 +29,7 @@ pub async fn route(
               re
             })
         },
-        None => Err(Error::BadLogin),
+        None => Err(Error::bad_login()),
       }
     },
     Some("admin") => {
@@ -70,7 +70,7 @@ pub async fn route(
           ).await
         },
         _ => {
-          Err(Error::PathNotFound( format!("{}", req.uri().path()) ))
+          Err(Error::path_not_found(&req))
         },
       }
     },
