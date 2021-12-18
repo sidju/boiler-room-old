@@ -141,11 +141,11 @@ async fn integration_tests() {
   assert_eq!(StatusCode::UNAUTHORIZED, response.status());
 
 
+
   println!("\nTest logout with valid session.");
   // User
   let request = Request::post( format!("http://127.0.0.1:{}/api/logout", TEST_SERVER_PORT) )
     .header("Authorization", format!("bearer {}", user_session.key))
-    .header("Content-Length", "0")
     .body("".into())
     .unwrap()
   ;
@@ -175,8 +175,7 @@ async fn integration_tests() {
   ;
   let mut response = client.request(request).await.unwrap();
   println!("Response to user logout: {:?}", response);
-  let error: String = from_json(&mut response).await;
-  println!("{}", error);
+  print_json(&mut response).await;
   assert_eq!(StatusCode::UNAUTHORIZED, response.status());
   // Admin
   let request = Request::post( format!("http://127.0.0.1:{}/api/logout", TEST_SERVER_PORT) )
@@ -186,8 +185,7 @@ async fn integration_tests() {
   ;
   let mut response = client.request(request).await.unwrap();
   println!("Response to admin logout: {:?}", response);
-  let error: String = from_json(&mut response).await;
-  println!("{}", error);
+  print_json(&mut response).await;
   assert_eq!(StatusCode::UNAUTHORIZED, response.status());
 
 
