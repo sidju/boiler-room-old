@@ -1,14 +1,9 @@
 use super::*;
 
+use shared_types::ReturnableUser;
+
 mod password;
 mod sessions;
-
-#[derive(Serialize)]
-pub struct ReturnableUser {
-  id: i32,
-  username: String,
-  admin: bool
-}
 
 pub async fn route(
   state: &'static State,

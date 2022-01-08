@@ -1,5 +1,5 @@
 use super::*;
-use crate::auth::Login;
+use shared_types::Login;
 
 mod user;
 mod admin;

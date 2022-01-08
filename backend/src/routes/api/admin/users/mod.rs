@@ -2,49 +2,7 @@ use super::*;
 
 mod user;
 
-#[derive(Serialize)]
-pub struct ReturnableUser {
-  id: i32,
-  username: String,
-  admin: bool,
-  locked: bool
-}
-
-#[derive(Deserialize)]
-struct NewUser {
-  username: String,
-  #[serde(default)]
-  admin: bool,
-  #[serde(default)]
-  locked: bool,
-}
-
-#[derive(Deserialize)]
-enum UsersOrder {
-  #[serde(alias = "id_asc")]
-  IdAsc,
-  #[serde(alias = "id_desc")]
-  IdDesc,
-  #[serde(alias = "username_asc")]
-  UsernameAsc,
-  #[serde(alias = "username_desc")]
-  UsernameDesc,
-}
-impl Default for UsersOrder {
-  fn default() -> Self { Self::UsernameAsc }
-}
-#[derive(Deserialize)]
-struct UsersFilter {
-  id_mte: Option<i32>,
-  id_lte: Option<i32>,
-  username_regex: Option<String>,
-  username_nregex: Option<String>,
-  admin_eq: Option<bool>,
-  locked_eq: Option<bool>,
-  #[serde(default)]
-  order_by: UsersOrder,
-  limit: Option<i64>,
-}
+use shared_types::{AdminReturnableUser, NewUser, UsersOrder, UsersFilter};
 
 pub async fn route(
   state: &'static State,
@@ -61,7 +19,7 @@ pub async fn route(
           let filter: UsersFilter = parse_filter(&req)?;
           // Fetch the data from database
           // Note the null checking around every filter
-          let users = sqlx_order!( ReturnableUser, &state.db_pool;
+          let users = sqlx_order!( AdminReturnableUser, &state.db_pool;
             "
 SELECT id, username, admin, locked FROM users
 WHERE
@@ -97,7 +55,7 @@ LIMIT $7
         },
         &Method::POST => {
           let new_user: NewUser = parse_json(&mut req, state.max_content_len).await?;
-          let created_user = sqlx::query_as!( ReturnableUser,
+          let created_user = sqlx::query_as!( AdminReturnableUser,
             "
 INSERT INTO users(username,locked,admin) VALUES($1,$2,$3)
 RETURNING id,username,admin,locked

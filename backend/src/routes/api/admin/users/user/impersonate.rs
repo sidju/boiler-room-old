@@ -1,9 +1,6 @@
 use super::*;
 
-#[derive(Deserialize)]
-struct Impersonate {
-  admin_password: String,
-}
+use shared_types::{Impersonate, Session};
 
 // Note that this password validation is does allow an attacker to know if the
 // admin whose session they have stolen has a password or not via timing.
@@ -55,7 +52,7 @@ pub async fn route(
   // Allow only un-extended sessions for impersonation
   let until = chrono::offset::Utc::now().naive_utc() + chrono::Duration::days(1);
 
-  let ret = sqlx::query_as!( crate::auth::Session,
+  let ret = sqlx::query_as!( Session,
     "INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3) RETURNING id, key, until",
     userid,
     &key,

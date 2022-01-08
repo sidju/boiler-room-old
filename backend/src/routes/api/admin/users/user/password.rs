@@ -1,11 +1,6 @@
 use super::*;
 
-#[derive(Deserialize)]
-struct PasswordChange {
-  admin_password: String,
-  new_password: String,
-  clear_sessions: bool,
-}
+use shared_types::PasswordReset;
 
 pub async fn route(
   state: &'static State,
@@ -36,7 +31,7 @@ pub async fn route(
       empty()
     },
     &Method::POST => {
-      let query: PasswordChange = parse_json(&mut req, state.max_content_len).await?;
+      let query: PasswordReset = parse_json(&mut req, state.max_content_len).await?;
     
       // Verify the admin_password, so it takes more than a session key to
       // create unlimited session keys

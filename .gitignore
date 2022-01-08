@@ -1,3 +1,8 @@
 /target
+/backend/sql-files
+/backend/target
+/frontend/target
+/frontend/pkg
+/shared_types/target
 Cargo.lock
 .env

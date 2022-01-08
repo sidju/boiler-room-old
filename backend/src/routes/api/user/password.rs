@@ -1,11 +1,6 @@
 use super::*;
 
-#[derive(Deserialize)]
-struct PasswordChange {
-  old_password: String,
-  new_password: String,
-  clear_sessions: bool,
-}
+use shared_types::PasswordChange;
 
 pub async fn route(
   state: &'static State,

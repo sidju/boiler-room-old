@@ -5,22 +5,7 @@ use crate::Error;
 use chrono::Duration;
 use chrono::offset::Utc;
 
-
-// Session struct, describing created Session
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Session {
-  pub id: i32,
-  pub key: String,
-  pub until: sqlx::types::chrono::NaiveDateTime,
-}
-
-// Login form struct
-#[derive(serde::Deserialize)]
-pub struct Login {
-  username: String,
-  password: String,
-  extended: bool, // If true we make session last longer
-}
+use shared_types::{Login, Session};
 
 // Specifically designed login handler that behaves identically no matter
 // if the account exists or not and if the password matches or not

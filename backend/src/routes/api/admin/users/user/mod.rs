@@ -3,12 +3,7 @@ use super::*;
 mod password;
 mod impersonate;
 
-#[derive(Deserialize)]
-struct UpdateUser {
-  username: String,
-  admin: bool,
-  locked: bool,
-}
+use shared_types::UpdateUser;
 
 pub async fn route(
   state: &'static State,
@@ -22,7 +17,7 @@ pub async fn route(
       verify_path_end(&path_vec, &req)?;
       match req.method() {
         &Method::GET => {
-          let user = sqlx::query_as!(super::ReturnableUser,
+          let user = sqlx::query_as!(super::AdminReturnableUser,
             "SELECT id, username, admin, locked FROM users WHERE id = $1",
             userid
           )
@@ -34,7 +29,7 @@ pub async fn route(
         &Method::PUT => {
           if userid < 1 { return Err(Error::method_not_found(&req)); }
           let update: UpdateUser = parse_json(&mut req, state.max_content_len).await?;
-          let updated = sqlx::query_as!(super::ReturnableUser,
+          let updated = sqlx::query_as!(super::AdminReturnableUser,
             "
 UPDATE users SET username = $2, admin = $3, locked = $4 WHERE id = $1
 RETURNING id, username, admin, locked

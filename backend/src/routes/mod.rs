@@ -1,7 +1,5 @@
 use std::convert::Infallible;
 use hyper::{StatusCode, Method};
-use serde::{Serialize, Deserialize};
-use sqlx::types::chrono::NaiveDateTime;
 
 use crate::{State, Error, Reply};
 use crate::auth::Permissions;
