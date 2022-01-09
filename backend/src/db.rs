@@ -15,7 +15,7 @@ macro_rules! sqlx_order {
     match $matchee {
       $(
       $pattern => {
-        sqlx_order!( @inner $ret_struct, $db; $qhead + $middle + $qtail, $argument )        
+        sqlx_order!( @inner $ret_struct, $db; $qhead + $middle + $qtail, $argument )
       }
       )*
     }
@@ -27,16 +27,12 @@ macro_rules! sqlx_order {
   };
 }
 
-pub async fn update_admin(
-  db_pool: &PgPool,
-  hash: String,
-) -> Result<(), Error> {
-  sqlx::query!(
-    "UPDATE users SET username = 'admin', pass = $1, admin = true, locked = false WHERE id = 0",
-    hash,
-  )
+pub async fn update_admin(db_pool: &PgPool, hash: String) -> Result<(), Error> {
+    sqlx::query!(
+        "UPDATE users SET username = 'admin', pass = $1, admin = true, locked = false WHERE id = 0",
+        hash,
+    )
     .execute(db_pool)
-    .await?
-  ;
-  Ok(())
+    .await?;
+    Ok(())
 }

@@ -5,3 +5,9 @@ members = [
   "backend",
   "frontend",
 ]
+
+[profile.release]
+lto = true
+opt-level = 'z'
+codegen-units = 1
+
