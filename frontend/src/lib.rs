@@ -1,47 +1,21 @@
 #![allow(clippy::wildcard_imports)]
 
-use seed::{prelude::*, *};
+use seed::{*, prelude::*};
 
-mod routes;
-use routes::*;
+// Define and init application state
+mod model;
+// Render state into vDOM instance
+mod view;
+// Translate UI events into state changes
+mod controller;
 
-struct Model {
-    url: Url,
-    name: String,
-}
-
-fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
-    orders.subscribe(Msg::UrlChanged);
-    Model {
-        url: url,
-        name: "world".to_string(),
-    }
-}
-
-#[derive(Clone)]
-enum Msg {
-    UrlChanged(subs::UrlChanged),
-    Update(String),
-}
-fn update(msg: Msg, model: &mut Model, _: &mut impl Orders<Msg>) {
-    match msg {
-        Msg::UrlChanged(subs::UrlChanged(url)) => model.url = url,
-        Msg::Update(new) => model.name = new,
-    }
-}
-
-fn view(model: &Model) -> Node<Msg> {
-    div![
-        "Top menu bar or something",
-        br!(),
-        route(model),
-        br!(),
-        "A footer maybe?"
-    ]
-}
+// Application state struct
+use model::Model;
+// Enum over handled events
+use controller::Msg;
 
 #[wasm_bindgen(start)]
 pub fn start() {
     // Mount the `app` to the element with the `id` "app".
-    App::start("app", init, update, view);
+    App::start("app", model::init, controller::update, view::view);
 }
