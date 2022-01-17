@@ -1,0 +1,11 @@
+edition = "2021"
+
+tab_spaces = 2
+newline_style = "Unix"
+
+#normalize_comments = true
+#wrap_comments = true
+#report_todo = "Always"
+#report_fixme = "Always"
+
+#trailing_comma = "Always"

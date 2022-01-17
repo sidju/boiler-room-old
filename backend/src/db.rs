@@ -28,11 +28,11 @@ macro_rules! sqlx_order {
 }
 
 pub async fn update_admin(db_pool: &PgPool, hash: String) -> Result<(), Error> {
-    sqlx::query!(
-        "UPDATE users SET username = 'admin', pass = $1, admin = true, locked = false WHERE id = 0",
-        hash,
-    )
-    .execute(db_pool)
-    .await?;
-    Ok(())
+  sqlx::query!(
+    "UPDATE users SET username = 'admin', pass = $1, admin = true, locked = false WHERE id = 0",
+    hash,
+  )
+  .execute(db_pool)
+  .await?;
+  Ok(())
 }

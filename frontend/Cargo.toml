@@ -14,6 +14,7 @@ wasm-bindgen-test = "0.3.18"
 
 [dependencies]
 seed = "0.8.0"
+shared_types = { path = "../shared_types" }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ['-Os']

@@ -1,3 +1,5 @@
+.PHONY: default wasm release wasm-release serve clean
+
 default: wasm
 	cargo build
 
@@ -9,8 +11,6 @@ release: wasm-release
 
 wasm-release:
 	cd frontend && wasm-pack build --target web --out-name package
-
-.PHONY: clean serve
 
 serve: default
 	cargo run -p backend
