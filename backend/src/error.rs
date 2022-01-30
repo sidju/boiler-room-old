@@ -5,7 +5,6 @@ use crate::Reply;
 use argon2::password_hash;
 use hyper::header::HeaderValue;
 use hyper::{Body, Request, Response, StatusCode};
-use serde::Serialize;
 // Public errors to wrap
 use hyper::header::ToStrError as UnreadableHeaderError;
 use serde_json::Error as JsonError;

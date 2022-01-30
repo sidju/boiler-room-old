@@ -1,7 +1,9 @@
 use super::*;
 
+#[derive(Clone)]
 pub(crate) struct LoginModel {
   inner: shared_types::Login,
+  pub logout_message: &'static str,
   failure_message: &'static str,
 }
 impl LoginModel {
@@ -12,6 +14,7 @@ impl LoginModel {
         password: String::new(),
         extended: false,
       },
+      logout_message: "",
       failure_message: "",
     }
   }
@@ -46,17 +49,18 @@ pub(crate) fn login_update(msg: LoginMsg, model: &mut LoginModel, orders: &mut i
         }.await;
         match res {
           Ok(x) => Some(x),
-          Err(e) => { log!(e); None },
+          Err(e) => { log!("Error occured in login request", e); None },
         }
       });
       model.inner.password.clear();
+      model.logout_message = "";
       orders.skip();
     },
     LoginMsg::LoginSuccess(s) => {
       model.inner.username.clear();
       model.inner.extended = false;
       model.failure_message = "";
-      orders.send_msg(Msg::Auth(Some(s)));
+      orders.send_msg(Msg::SetAuth(s));
       orders.skip();
     },
     LoginMsg::LoginError(e) => {
@@ -64,14 +68,27 @@ pub(crate) fn login_update(msg: LoginMsg, model: &mut LoginModel, orders: &mut i
       model.failure_message = match e {
         ClientError::BadLogin => "Wrong username or password.",
         ClientError::AccountLocked => "Account locked. Contact administrator.",
-        _ => "Internal error",
+        _ => {
+          log!("Login error:", e);
+          "Internal error"
+        },
       }
     },
   }
 }
 
-pub(crate) fn login_view(model: &LoginModel) -> Node<Msg> {
+pub(crate) fn login_view(model: &LoginModel) -> Node<LoginMsg> {
   div![
+    if !model.logout_message.is_empty() {
+      div![
+        C!["notice"],
+        br!(),
+        &model.logout_message,
+        br!(),
+      ]
+    } else {
+      div![C!["notice"]]
+    },
     if !model.failure_message.is_empty() {
       div![
         C!["error"],
@@ -80,31 +97,34 @@ pub(crate) fn login_view(model: &LoginModel) -> Node<Msg> {
         br!(),
       ]
     } else {
-      br!()
+      div![C!["error"]]
     },
-    "Username: ", br!(),
-    input![
-      input_ev(Ev::Change, |x| Msg::Login(LoginMsg::UpdateUsername(x))),
-      attrs!(At::Value => model.inner.username)
-    ],
     br!(),
-    "Password: ", br!(),
-    input![
-      input_ev(Ev::Change, |x| Msg::Login(LoginMsg::UpdatePassword(x))),
-      attrs!(At::Value => model.inner.password, At::Type => "password")
-    ],
-    br!(),
-    "Extended session: ",
-    input![
-      input_ev(Ev::Click, |_| Msg::Login(LoginMsg::ToggleExtended)),
-      attrs!(At::Type => "checkbox", At::Checked => model.inner.extended.as_at_value())
-    ],
-    br!(),
-    button![
-      "Login",
-      ev(Ev::Click, |event| {
+    form![
+      "Username: ", br!(),
+      input![
+        input_ev(Ev::Change, LoginMsg::UpdateUsername),
+        attrs!(At::Value => model.inner.username)
+      ],
+      br!(),
+      "Password: ", br!(),
+      input![
+        input_ev(Ev::Change, LoginMsg::UpdatePassword),
+        attrs!(At::Value => model.inner.password, At::Type => "password")
+      ],
+      br!(),
+      "Extended session: ",
+      input![
+        input_ev(Ev::Click, |_| LoginMsg::ToggleExtended),
+        attrs!(At::Type => "checkbox", At::Checked => model.inner.extended.as_at_value())
+      ],
+      br!(),
+      input![
+        attrs!(At::Value => "Login", At::Type => "submit"),
+      ],
+      ev(Ev::Submit, |event| {
         event.prevent_default();
-        Msg::Login(LoginMsg::Submit)
+        LoginMsg::Submit
       })
     ],
   ]

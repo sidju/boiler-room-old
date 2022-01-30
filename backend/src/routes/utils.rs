@@ -1,5 +1,4 @@
 use super::*;
-use hyper::header::HeaderValue;
 use serde::{de::DeserializeOwned, Serialize};
 
 pub fn set_status(re: Result<Response, Error>, status: StatusCode) -> Result<Response, Error> {
@@ -15,6 +14,11 @@ pub fn empty() -> Result<Response, Error> {
   Ok(re)
 }
 
+pub fn not_modified() -> Result<Response, Error> {
+  let mut re = Response::new("".into());
+  *re.status_mut() = StatusCode::NOT_MODIFIED;
+  Ok(re)
+}
 pub fn html(data: &'static str) -> Result<Response, Error> {
   let mut re = Response::new(data.into());
   re.headers_mut()
