@@ -79,28 +79,25 @@ pub(crate) fn login_update(msg: LoginMsg, model: &mut LoginModel, orders: &mut i
 
 pub(crate) fn login_view(model: &LoginModel) -> Node<LoginMsg> {
   div![
+    C!("login"),
     if !model.logout_message.is_empty() {
       div![
-        C!["notice"],
-        br!(),
+        C!("notice"),
         &model.logout_message,
-        br!(),
       ]
     } else {
-      div![C!["notice"]]
+      Node::Empty
     },
     if !model.failure_message.is_empty() {
       div![
-        C!["error"],
-        br!(),
+        C!("error"),
         &model.failure_message,
-        br!(),
       ]
     } else {
-      div![C!["error"]]
+      Node::Empty
     },
-    br!(),
     form![
+      C!("login-form"),
       "Username: ", br!(),
       input![
         input_ev(Ev::Change, LoginMsg::UpdateUsername),

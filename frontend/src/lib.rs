@@ -146,17 +146,41 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 
 // Render state into vDOM instance with callbacks
 fn view(model: &Model) -> Node<Msg> {
-  let url = model.url.clone(); // Cloned, since internal iterator is used by routes_view
-  div![
-    "Top menu bar----------", button!["Logout", ev(Ev::Click, |_| Msg::Logout)],
-    br!(),
-    match &model.session {
-      None => login_view(&model.login).map_msg(|x| Msg::Login(x)),
-      Some(_session) => routes_view(&model.routes, url).map_msg(|x| Msg::Routes(x)),
-    },
-    br!(),
-    "Footer----------------"
-  ]
+  match &model.session {
+    None => login_view(&model.login).map_msg(Msg::Login),
+    Some(session) => { div![
+      div![
+        C!("navbar"),
+        span![
+          C!("navbar-left"),
+          a![
+            "PageRoot",
+            attrs![At::Href => "#"],
+          ],
+        ],
+        span![
+          C!("navbar-right"),
+          a![
+            "Settings",
+            attrs![At::Href => "#settings"],
+          ],
+          a![
+            "Logout",
+            attrs![At::Href => "#"],
+            ev(Ev::Click, |_| Msg::Logout),
+          ],
+        ],
+      ],
+      div![
+        C!("route-contents"),
+        routes_view(&model.routes, model.url.clone()).map_msg(Msg::Routes),
+      ],
+      div![
+        C!("footer"),
+        "footer contents",
+      ],
+    ] },
+  }
 }
 
 #[wasm_bindgen(start)]

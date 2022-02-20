@@ -43,7 +43,7 @@ const SETTINGS: &str = "settings";
 
 pub(crate) fn routes_view(model: &RoutesModel, mut url: Url) -> Node<RoutesMsg> {
   // Match on first part of the path, handing down accordingly
-  match url.next_path_part() {
+  match url.next_hash_path_part() {
     None => root_view(&model.root).map_msg(|x| RoutesMsg::Root(x)),
     Some(SETTINGS) => settings_view(&model.settings).map_msg(|x| RoutesMsg::Settings(x)),
     //        Some(ADMIN) => admin::view(model),
@@ -52,5 +52,5 @@ pub(crate) fn routes_view(model: &RoutesModel, mut url: Url) -> Node<RoutesMsg> 
   }
 }
 fn bad_url<X>(url: Url) -> Node<X> {
-  div![C!["error"], format!("Given URL not found:\"{}\".", url),]
+  div![C!["error"], format!("Given path not found:\"{}\".", url),]
 }

@@ -25,6 +25,12 @@ pub fn html(data: &'static str) -> Result<Response, Error> {
     .insert("Content-Type", HeaderValue::from_static("text/html; charset=utf-8"));
   Ok(re)
 }
+pub fn css(data: &'static str) -> Result<Response, Error> {
+  let mut re = Response::new(data.into());
+  re.headers_mut()
+    .insert("Content-Type", HeaderValue::from_static("text/css; charset=utf-8"));
+  Ok(re)
+}
 pub fn javascript(data: &'static str) -> Result<Response, Error> {
   let mut re = Response::new(data.into());
   re.headers_mut()

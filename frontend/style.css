@@ -1,0 +1,41 @@
+body {
+  background: #400000;
+  color: #999999;
+  margin: 0;
+  padding: 0;
+}
+.navbar {
+  background: #000000;
+  margin: 0;
+  padding: 0;
+}
+.navbar a {
+  color: #999999;
+  text-decoration: none;
+  padding: 8px;
+  display: inline-block;
+}
+.navbar a:hover {
+  background: #111111;
+}
+.navbar-left {
+}
+.navbar-right {
+  float: right;
+}
+
+.footer {
+  background: #200000;
+  text-align: center;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+}
+
+.login {
+  background: #000000;
+  text-align: center;
+  height: fit-content;
+  width: 20em;
+  margin: 2em auto;
+}

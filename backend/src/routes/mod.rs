@@ -22,6 +22,8 @@ pub async fn handle_request(state: &'static State, req: Request) -> Result<Respo
 // Static files for the frontend
 static INDEX_HTML: &str = include_str!("../../../frontend/index.html");
 static INDEX_HTML_ETAG: HeaderValue = HeaderValue::from_static(include_str!("../../../frontend/index.html.etag"));
+static STYLE_CSS: &str = include_str!("../../../frontend/style.css");
+static STYLE_CSS_ETAG: HeaderValue = HeaderValue::from_static(include_str!("../../../frontend/style.css.etag"));
 static PACKAGE_JS: &str = include_str!("../../../frontend/pkg/package.js");
 static PACKAGE_JS_ETAG: HeaderValue = HeaderValue::from_static(include_str!("../../../frontend/pkg/package.js.etag"));
 static PACKAGE_WASM: &[u8] = include_bytes!("../../../frontend/pkg/package_bg.wasm");
@@ -65,6 +67,32 @@ async fn route(state: &'static State, req: Request) -> Result<Response, Error> {
       re.headers_mut().insert("cache-control", HeaderValue::from_static("no-store"));
       Ok(re)
     },
+    None | Some("") | Some("index.html") => {
+      verify_method_path_end(&path_vec, &req, &Method::GET)?;
+      // Use if-none-match to only send data if needed
+      let etag = req.headers().get("if-none-match");
+      let mut re = if Some(&INDEX_HTML_ETAG) == etag {
+        not_modified()?
+      } else {
+        html(INDEX_HTML)?
+      };
+      re.headers_mut().insert("etag", INDEX_HTML_ETAG.clone());
+      re.headers_mut().insert("cache-control", CACHE_CONTROL.clone());
+      Ok(re)
+    },
+    Some("style.css") => {
+      verify_method_path_end(&path_vec, &req, &Method::GET)?;
+      // Use if-none-match to only send data if needed
+      let etag = req.headers().get("if-none-match");
+      let mut re = if Some(&STYLE_CSS_ETAG) == etag {
+        not_modified()?
+      } else {
+        css(STYLE_CSS)?
+      };
+      re.headers_mut().insert("etag", STYLE_CSS_ETAG.clone());
+      re.headers_mut().insert("cache-control", CACHE_CONTROL.clone());
+      Ok(re)
+    },
     // Serve webassembly file
     Some("package.js") => {
       verify_method_path_end(&path_vec, &req, &Method::GET)?;
@@ -93,18 +121,6 @@ async fn route(state: &'static State, req: Request) -> Result<Response, Error> {
       Ok(re)
     }
     // For ALL other paths, serve index file
-    _ => {
-      verify_method_path_end(&path_vec, &req, &Method::GET)?;
-      // Use if-none-match to only send data if needed
-      let etag = req.headers().get("if-none-match");
-      let mut re = if Some(&INDEX_HTML_ETAG) == etag {
-        not_modified()?
-      } else {
-        html(INDEX_HTML)?
-      };
-      re.headers_mut().insert("etag", INDEX_HTML_ETAG.clone());
-      re.headers_mut().insert("cache-control", CACHE_CONTROL.clone());
-      Ok(re)
-    }
+    _ => Err(Error::path_not_found(&req)),
   }
 }

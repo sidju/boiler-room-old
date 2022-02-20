@@ -6,3 +6,4 @@
 /shared_types/target
 Cargo.lock
 .env
+*.etag
