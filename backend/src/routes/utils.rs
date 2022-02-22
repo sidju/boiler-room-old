@@ -21,20 +21,26 @@ pub fn not_modified() -> Result<Response, Error> {
 }
 pub fn html(data: &'static str) -> Result<Response, Error> {
   let mut re = Response::new(data.into());
-  re.headers_mut()
-    .insert("Content-Type", HeaderValue::from_static("text/html; charset=utf-8"));
+  re.headers_mut().insert(
+    "Content-Type",
+    HeaderValue::from_static("text/html; charset=utf-8"),
+  );
   Ok(re)
 }
 pub fn css(data: &'static str) -> Result<Response, Error> {
   let mut re = Response::new(data.into());
-  re.headers_mut()
-    .insert("Content-Type", HeaderValue::from_static("text/css; charset=utf-8"));
+  re.headers_mut().insert(
+    "Content-Type",
+    HeaderValue::from_static("text/css; charset=utf-8"),
+  );
   Ok(re)
 }
 pub fn javascript(data: &'static str) -> Result<Response, Error> {
   let mut re = Response::new(data.into());
-  re.headers_mut()
-    .insert("Content-Type", HeaderValue::from_static("text/javascript; charset=utf-8"));
+  re.headers_mut().insert(
+    "Content-Type",
+    HeaderValue::from_static("text/javascript; charset=utf-8"),
+  );
   Ok(re)
 }
 pub fn webassembly(data: &'static [u8]) -> Result<Response, Error> {
@@ -46,8 +52,10 @@ pub fn webassembly(data: &'static [u8]) -> Result<Response, Error> {
 
 pub fn json<T: Serialize + ?Sized>(data: &T) -> Result<Response, Error> {
   let mut re = Response::new(serde_json::to_string(data)?.into());
-  re.headers_mut()
-    .insert("Content-Type", HeaderValue::from_static("application/json; charset=utf-8"));
+  re.headers_mut().insert(
+    "Content-Type",
+    HeaderValue::from_static("application/json; charset=utf-8"),
+  );
   Ok(re)
 }
 

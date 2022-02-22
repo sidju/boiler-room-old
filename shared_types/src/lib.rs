@@ -11,10 +11,12 @@ pub struct Login {
 
 // Session struct, describing created Session
 // Since it allows impersonation this is only given out at login
+// It also contains if the user was admin at login, to let client know its permissions
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
   pub id: i32,
   pub key: String,
+  pub is_admin: bool,
   pub until: NaiveDateTime,
 }
 

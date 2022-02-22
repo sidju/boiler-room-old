@@ -35,8 +35,10 @@ impl Reply for InternalError {
     eprintln!("{:?}", &self);
     let mut re = Response::new("Internal server error".into());
     *re.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-    re.headers_mut()
-      .insert("Content-Type", HeaderValue::from_static("application/json; charset=utf-8"));
+    re.headers_mut().insert(
+      "Content-Type",
+      HeaderValue::from_static("application/json; charset=utf-8"),
+    );
     re
   }
 }
@@ -63,8 +65,10 @@ impl Reply for ClientError {
       Self::BadLogin => StatusCode::UNAUTHORIZED,
       Self::AccountLocked => StatusCode::UNAUTHORIZED,
     };
-    re.headers_mut()
-      .insert("Content-Type", HeaderValue::from_static("application/json; charset=utf-8"));
+    re.headers_mut().insert(
+      "Content-Type",
+      HeaderValue::from_static("application/json; charset=utf-8"),
+    );
     re
   }
 }

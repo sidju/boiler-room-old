@@ -30,7 +30,7 @@ pub(crate) fn root_view(model: &RootModel) -> Node<RootMsg> {
     "!",
     br!(),
     input![
-      input_ev(Ev::Change, |x| RootMsg::UpdateName(x) ),
+      input_ev(Ev::Change, |x| RootMsg::UpdateName(x)),
       attrs!(At::Value => name)
     ],
   ]

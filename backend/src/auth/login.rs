@@ -98,7 +98,16 @@ async fn login_inner(state: &'static State, form: Login) -> Result<Option<Sessio
   // Make the database insert and return the session key
   let ret = sqlx::query_as!(
     Session,
-    "INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3) RETURNING id, key, until",
+    "
+WITH s AS (
+  INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3)
+  RETURNING id, userid, key, until
+)
+SELECT s.id, s.key, users.admin AS is_admin, s.until 
+FROM s
+JOIN users
+ON users.id = $1
+    ",
     user.id,
     &key,
     &until,

@@ -52,9 +52,19 @@ pub async fn route(
   // Allow only un-extended sessions for impersonation
   let until = chrono::offset::Utc::now().naive_utc() + chrono::Duration::days(1);
 
+  // Make the database insert and return the session key
   let ret = sqlx::query_as!(
     Session,
-    "INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3) RETURNING id, key, until",
+    "
+WITH s AS (
+  INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3)
+  RETURNING id, userid, key, until
+)
+SELECT s.id, s.key, users.admin AS is_admin, s.until 
+FROM s
+JOIN users
+ON users.id = $1
+    ",
     userid,
     &key,
     &until,

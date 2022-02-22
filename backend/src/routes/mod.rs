@@ -1,5 +1,5 @@
-use hyper::{Method, StatusCode};
 use hyper::header::HeaderValue;
+use hyper::{Method, StatusCode};
 use std::convert::Infallible;
 
 use crate::auth::Permissions;
@@ -21,22 +21,26 @@ pub async fn handle_request(state: &'static State, req: Request) -> Result<Respo
 
 // Static files for the frontend
 static INDEX_HTML: &str = include_str!("../../../frontend/index.html");
-static INDEX_HTML_ETAG: HeaderValue = HeaderValue::from_static(include_str!("../../../frontend/index.html.etag"));
+static INDEX_HTML_ETAG: HeaderValue =
+  HeaderValue::from_static(include_str!("../../../frontend/index.html.etag"));
 static STYLE_CSS: &str = include_str!("../../../frontend/style.css");
-static STYLE_CSS_ETAG: HeaderValue = HeaderValue::from_static(include_str!("../../../frontend/style.css.etag"));
+static STYLE_CSS_ETAG: HeaderValue =
+  HeaderValue::from_static(include_str!("../../../frontend/style.css.etag"));
 static PACKAGE_JS: &str = include_str!("../../../frontend/pkg/package.js");
-static PACKAGE_JS_ETAG: HeaderValue = HeaderValue::from_static(include_str!("../../../frontend/pkg/package.js.etag"));
+static PACKAGE_JS_ETAG: HeaderValue =
+  HeaderValue::from_static(include_str!("../../../frontend/pkg/package.js.etag"));
 static PACKAGE_WASM: &[u8] = include_bytes!("../../../frontend/pkg/package_bg.wasm");
-static PACKAGE_WASM_ETAG: HeaderValue = HeaderValue::from_static(include_str!("../../../frontend/pkg/package_bg.wasm.etag"));
+static PACKAGE_WASM_ETAG: HeaderValue =
+  HeaderValue::from_static(include_str!("../../../frontend/pkg/package_bg.wasm.etag"));
 // Client-cache config for them
 // Cache for one week, use and validate in the last day of that week.
 // Daily and consistent weekly users will always use cache, upgrades can be
-// done by setting the header below to 'no-cache' (aka. always validate) 
+// done by setting the header below to 'no-cache' (aka. always validate)
 static CACHE_CONTROL: HeaderValue = HeaderValue::from_static(
   //"max-age=518400,stale-while-revalidate=172800" // Recommended value for production use
   // For upgrades, set this 1 week and 1 day before deployment
   // (so all client caches have been stale once)
-  "max-age=0,must-revalidate" // Recommended value for development
+  "max-age=0,must-revalidate", // Recommended value for development
 );
 
 // We have an inner handler to allow returning our own types,
@@ -64,9 +68,10 @@ async fn route(state: &'static State, req: Request) -> Result<Response, Error> {
     Some("api") => {
       let mut re = api::route(state, req, path_vec).await?;
       // Tell clients not to cache API responses
-      re.headers_mut().insert("cache-control", HeaderValue::from_static("no-store"));
+      re.headers_mut()
+        .insert("cache-control", HeaderValue::from_static("no-store"));
       Ok(re)
-    },
+    }
     None | Some("") | Some("index.html") => {
       verify_method_path_end(&path_vec, &req, &Method::GET)?;
       // Use if-none-match to only send data if needed
@@ -77,9 +82,10 @@ async fn route(state: &'static State, req: Request) -> Result<Response, Error> {
         html(INDEX_HTML)?
       };
       re.headers_mut().insert("etag", INDEX_HTML_ETAG.clone());
-      re.headers_mut().insert("cache-control", CACHE_CONTROL.clone());
+      re.headers_mut()
+        .insert("cache-control", CACHE_CONTROL.clone());
       Ok(re)
-    },
+    }
     Some("style.css") => {
       verify_method_path_end(&path_vec, &req, &Method::GET)?;
       // Use if-none-match to only send data if needed
@@ -90,9 +96,10 @@ async fn route(state: &'static State, req: Request) -> Result<Response, Error> {
         css(STYLE_CSS)?
       };
       re.headers_mut().insert("etag", STYLE_CSS_ETAG.clone());
-      re.headers_mut().insert("cache-control", CACHE_CONTROL.clone());
+      re.headers_mut()
+        .insert("cache-control", CACHE_CONTROL.clone());
       Ok(re)
-    },
+    }
     // Serve webassembly file
     Some("package.js") => {
       verify_method_path_end(&path_vec, &req, &Method::GET)?;
@@ -104,7 +111,8 @@ async fn route(state: &'static State, req: Request) -> Result<Response, Error> {
         javascript(PACKAGE_JS)?
       };
       re.headers_mut().insert("etag", PACKAGE_JS_ETAG.clone());
-      re.headers_mut().insert("cache-control", CACHE_CONTROL.clone());
+      re.headers_mut()
+        .insert("cache-control", CACHE_CONTROL.clone());
       Ok(re)
     }
     Some("package_bg.wasm") => {
@@ -117,7 +125,8 @@ async fn route(state: &'static State, req: Request) -> Result<Response, Error> {
         webassembly(PACKAGE_WASM)?
       };
       re.headers_mut().insert("etag", PACKAGE_WASM_ETAG.clone());
-      re.headers_mut().insert("cache-control", CACHE_CONTROL.clone());
+      re.headers_mut()
+        .insert("cache-control", CACHE_CONTROL.clone());
       Ok(re)
     }
     // For ALL other paths, serve index file

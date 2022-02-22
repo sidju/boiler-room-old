@@ -33,17 +33,17 @@ impl Model {
     let session = match LocalStorage::get("session") {
       Ok(s) => {
         let s: shared_types::Session = s; // Needed to declare expected type...
-        // If it has expired, ignore it
+                                          // If it has expired, ignore it
         if s.until < chrono::Utc::now().naive_utc() {
           None
         } else {
           Some(s)
         }
-      },
+      }
       Err(e) => {
         log!("Could not load session from storage", e);
         None
-      },
+      }
     };
     Model {
       url: url,
@@ -75,7 +75,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
       if s.until < chrono::Utc::now().naive_utc() {
         model.session = None;
       }
-    },
+    }
     None => (),
   }
 
@@ -88,7 +88,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         Err(e) => log!("Could not save session to storage", e),
       }
       model.session = Some(new_session);
-    },
+    }
     Msg::ClearAuth(message) => {
       match LocalStorage::remove("session") {
         Ok(()) => (),
@@ -100,7 +100,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
       *model = Model::new(model.url.clone()); // Also clears session
       model.login = login;
       model.login.logout_message = message;
-    },
+    }
     // Event forwarder for login events, and logout handler (here since related and small)
     Msg::Login(msg) => login_update(msg, &mut model.login, orders),
     Msg::Logout => match model.session.as_ref().map(|s| s.key.clone()) {
@@ -109,8 +109,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         let req = Request::new("/api/logout")
           .method(Method::Post)
           .header(Header::bearer(session_key))
-          .json(&())
-        ;
+          .json(&());
         orders.perform_cmd(async {
           let res: Result<(), FetchError> = async {
             let resp = req?.fetch().await?;
@@ -119,10 +118,11 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
               _ => {
                 let err: shared_types::ClientError = resp.json().await?;
                 log!("API error in logout request", err);
-              },
+              }
             };
             Ok(())
-          }.await;
+          }
+          .await;
           match res {
             Ok(()) => (),
             Err(e) => log!("Error occurred in logout request", e),
@@ -132,7 +132,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         // since in worst case backend deletes it on expiration
         orders.send_msg(Msg::ClearAuth("Successfully logged out."));
         orders.skip(); // Since sent message will trigger render
-      },
+      }
       None => (),
     },
     // For other routes, hand down events
@@ -148,38 +148,33 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
 fn view(model: &Model) -> Node<Msg> {
   match &model.session {
     None => login_view(&model.login).map_msg(Msg::Login),
-    Some(session) => { div![
+    Some(session) => {
       div![
-        C!("navbar"),
-        span![
-          C!("navbar-left"),
-          a![
-            "PageRoot",
-            attrs![At::Href => "#"],
+        div![
+          C!("navbar"),
+          span![C!("navbar-left"), a!["PageRoot", attrs![At::Href => "#"],],],
+          span![
+            C!("navbar-right"),
+            if session.is_admin {
+              a!["Admin", attrs![At::Href => "#admin"],]
+            } else {
+              Node::Empty
+            },
+            a!["Settings", attrs![At::Href => "#settings"],],
+            a![
+              "Logout",
+              attrs![At::Href => "#"],
+              ev(Ev::Click, |_| Msg::Logout),
+            ],
           ],
         ],
-        span![
-          C!("navbar-right"),
-          a![
-            "Settings",
-            attrs![At::Href => "#settings"],
-          ],
-          a![
-            "Logout",
-            attrs![At::Href => "#"],
-            ev(Ev::Click, |_| Msg::Logout),
-          ],
+        div![
+          C!("route-contents"),
+          routes_view(&model.routes, session, model.url.clone()).map_msg(Msg::Routes),
         ],
-      ],
-      div![
-        C!("route-contents"),
-        routes_view(&model.routes, model.url.clone()).map_msg(Msg::Routes),
-      ],
-      div![
-        C!("footer"),
-        "footer contents",
-      ],
-    ] },
+        div![C!("footer"), "footer contents",],
+      ]
+    }
   }
 }
 
