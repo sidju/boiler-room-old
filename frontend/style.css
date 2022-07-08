@@ -38,9 +38,8 @@ body {
 
 .login {
   background: #000000;
-  text-align: center;
   height: fit-content;
-  width: 20em;
-  margin: 8em auto;
+  width: fit-content;
+  margin: 6em auto;
   padding: 1em;
 }

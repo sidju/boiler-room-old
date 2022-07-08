@@ -60,7 +60,7 @@ WITH s AS (
   INSERT INTO sessions(userid, key, until) VALUES($1, $2, $3)
   RETURNING id, userid, key, until
 )
-SELECT s.id, s.key, users.admin AS is_admin, s.until 
+SELECT s.id, s.key, users.admin AS is_admin, users.username, s.until
 FROM s
 JOIN users
 ON users.id = $1

@@ -4,17 +4,21 @@ mod root;
 use root::*;
 mod settings;
 use settings::*;
+mod admin;
+use admin::*;
 
 // Model for underlying components
 pub(crate) struct RoutesModel {
   root: RootModel,
   settings: SettingsModel,
+  admin: AdminModel,
 }
 impl RoutesModel {
   pub(crate) fn new() -> Self {
     Self {
       root: RootModel::new(),
       settings: SettingsModel::new(),
+      admin: AdminModel::new(),
     }
   }
 }
@@ -23,6 +27,7 @@ impl RoutesModel {
 pub(crate) enum RoutesMsg {
   Root(RootMsg),
   Settings(SettingsMsg),
+  Admin(AdminMsg),
 }
 // Callback handler for those callbacks
 pub(crate) fn routes_update(
@@ -34,12 +39,9 @@ pub(crate) fn routes_update(
   match msg {
     RoutesMsg::Root(msg) => root_update(msg, &mut model.root, orders),
     RoutesMsg::Settings(msg) => settings_update(msg, &mut model.settings, session, orders),
+    RoutesMsg::Admin(msg) => admin_update(msg, &mut model.admin, session, orders),
   }
 }
-
-// Define the routes a string constants, to let the compiler prevent mis-spelling
-const SETTINGS: &str = "settings";
-//const ADMIN: &str = "admin";
 
 pub(crate) fn routes_view(
   model: &RoutesModel,
@@ -49,8 +51,8 @@ pub(crate) fn routes_view(
   // Match on first part of the path, handing down accordingly
   match url.next_hash_path_part() {
     None => root_view(&model.root).map_msg(|x| RoutesMsg::Root(x)),
-    Some(SETTINGS) => settings_view(&model.settings).map_msg(|x| RoutesMsg::Settings(x)),
-    //        Some(ADMIN) => admin::view(model),
+    Some("settings") => settings_view(&model.settings).map_msg(|x| RoutesMsg::Settings(x)),
+    Some("admin") => admin_view(&model.admin).map_msg(|x| RoutesMsg::Admin(x)),
     // If not an url we know, return a nice error page
     _ => bad_url(url),
   }

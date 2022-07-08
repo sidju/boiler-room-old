@@ -27,9 +27,6 @@ struct Model {
 impl Model {
   fn init(url: Url, orders: &mut impl Orders<Msg>) -> Model {
     orders.subscribe(Msg::UrlChanged);
-    Self::new(url)
-  }
-  fn new(url: Url) -> Model {
     let session = match LocalStorage::get("session") {
       Ok(s) => {
         let s: shared_types::Session = s; // Needed to declare expected type...
@@ -37,6 +34,33 @@ impl Model {
         if s.until < chrono::Utc::now().naive_utc() {
           None
         } else {
+          // Request updated username and is_admin to handle user changes
+          // This also ensures the session hasn't been deleted
+          let req = Request::new("/api/user")
+            .method(Method::Get)
+            .header(Header::bearer(s.key.clone()))
+          ;
+          orders.perform_cmd(async {
+            let res: Result<Option<Msg>, FetchError> = async {
+              let resp = req.fetch().await?;
+              match resp.status().code {
+                200 => Ok(Some(Msg::UserdataUpdate(resp.json().await?))),
+                401 => Ok(Some(Msg::ClearAuth("Session deleted remotely"))),
+                _ => {
+                  let err: shared_types::ClientError = resp.json().await?;
+                  log!("Error updating userdata", err);
+                  Ok(None)
+                }
+              }
+            }.await;
+            match res {
+              Ok(x) => x,
+              Err(e) => {
+                log!("Error occured in userdata update request", e);
+                None
+              }
+            }
+          });
           Some(s)
         }
       }
@@ -45,6 +69,9 @@ impl Model {
         None
       }
     };
+    Self::new(url, session)
+  }
+  fn new(url: Url, session: Option<shared_types::Session>) -> Model {
     Model {
       url: url,
       session: session,
@@ -60,6 +87,7 @@ enum Msg {
   UrlChanged(subs::UrlChanged),
   SetAuth(shared_types::Session),
   ClearAuth(&'static str), // Logout message
+  UserdataUpdate(shared_types::ReturnableUser),
   // Login view events
   Login(LoginMsg),
   Logout,
@@ -97,10 +125,17 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
       // Clear out all stored state except login form
       // (in case duplicate ClearAuth comes with latency)
       let login = model.login.clone();
-      *model = Model::new(model.url.clone()); // Also clears session
+      *model = Model::new(model.url.clone(), None); // Also clears session
       model.login = login;
       model.login.logout_message = message;
-    }
+    },
+    Msg::UserdataUpdate(user) => match &mut model.session {
+      Some(s) => {
+        s.username = user.username;
+        s.is_admin = user.admin;
+      },
+      None => (),
+    },
     // Event forwarder for login events, and logout handler (here since related and small)
     Msg::Login(msg) => login_update(msg, &mut model.login, orders),
     Msg::Logout => match model.session.as_ref().map(|s| s.key.clone()) {

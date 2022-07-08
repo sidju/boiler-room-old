@@ -11,12 +11,14 @@ pub struct Login {
 
 // Session struct, describing created Session
 // Since it allows impersonation this is only given out at login
-// It also contains if the user was admin at login, to let client know its permissions
+// It also contains if the user is admin and the username,
+// so it contains all commonly needed data for rendering.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
   pub id: i32,
   pub key: String,
   pub is_admin: bool,
+  pub username: String,
   pub until: NaiveDateTime,
 }
 
@@ -126,7 +128,7 @@ impl Default for UsersOrder {
     Self::UsernameAsc
   }
 }
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct UsersFilter {
   pub id_mte: Option<i32>,
   pub id_lte: Option<i32>,

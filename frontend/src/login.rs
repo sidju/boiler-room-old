@@ -109,7 +109,7 @@ pub(crate) fn login_view(model: &LoginModel) -> Node<LoginMsg> {
         attrs!(At::Value => model.inner.password, At::Type => "password")
       ],
       br!(),
-      "Extended session: ",
+      "Remember me: ",
       input![
         input_ev(Ev::Click, |_| LoginMsg::ToggleExtended),
         attrs!(At::Type => "checkbox", At::Checked => model.inner.extended.as_at_value())

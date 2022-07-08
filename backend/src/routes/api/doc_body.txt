@@ -7,7 +7,8 @@ Public paths:
       The extended flag defines wether the session is valid for 1 day (if false) or
       1 year (if true).
       If successful returns session data as a json body, containing id(int),
-      key(string) and time of expiry(datetime in UTC).
+      key(string), is_admin(bool), username(string) and time of 
+      expiry(datetime in UTC).
 
 User path's:
   logout:
@@ -19,7 +20,8 @@ User path's:
   user:
     GET:
       Get current user.
-      Returns current user's info (id, username, admin or not) as json body.
+      Returns current user's info (id(int), username(string), is_admin(bool)) as 
+      json body.
     sessions:
       GET:
         Get all sessions owned by user.
